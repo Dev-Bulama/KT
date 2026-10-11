@@ -1,0 +1,1381 @@
+// KATDICT Service & Project Intelligence Management Platform (KATDICT-SPIMP)
+// PostgreSQL schema. Datasource URL is supplied by prisma.config.ts.
+//
+// Conventions
+// - cuid() string ids for business entities; BigInt identity for append-only logs.
+// - Every status field is an enum; transitions are enforced in src/modules/*/workflow.ts.
+// - Request review status, project execution status and project acceptance status
+//   are deliberately separate fields.
+// - History tables (RequestStatusHistory, ProjectStatusHistory, AuditEvent) are
+//   append-only; AuditEvent is additionally protected by a database trigger.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Identity, authentication and authorization
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum UserType {
+  KATDICT_STAFF
+  MDA_USER
+  OVERSIGHT
+}
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  name              String
+  phone             String?
+  designation       String?
+  passwordHash      String?
+  status            UserStatus @default(PENDING_VERIFICATION)
+  userType          UserType
+  emailVerifiedAt   DateTime?
+  mfaEnabled        Boolean    @default(false)
+  mfaSecretEnc      String?
+  mfaRecoveryHashes String[]   @default([])
+  failedLoginCount  Int        @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  passwordChangedAt DateTime?
+  // KATDICT staff attributes used for assignment and workload
+  departmentId      String?
+  skills            String[]   @default([])
+  maxConcurrentProjects Int    @default(5)
+  availabilityNote  String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  department        Department?   @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: SetNull)
+  headOfDepartments Department[]  @relation("DepartmentHead")
+  roles             UserRole[]    @relation("UserRoles")
+  grantedRoles      UserRole[]    @relation("RoleGrantedBy")
+  sessions          Session[]
+  tokens            VerificationToken[]
+  membership        MdaMembership?
+  notifications     Notification[]
+  notificationPrefs NotificationPreference[]
+
+  createdRequests     ServiceRequest[]       @relation("RequestCreatedBy")
+  assessingRequests   ServiceRequest[]       @relation("RequestAssessor")
+  requestHistory      RequestStatusHistory[]
+  assessments         RequestAssessment[]
+  approvalDecisions   ApprovalDecision[]
+  requestComments     RequestComment[]
+  managedProjects     Project[]              @relation("ProjectManager")
+  assignments         ProjectAssignment[]    @relation("AssignmentAssignee")
+  assignmentsMade     ProjectAssignment[]    @relation("AssignmentAssigner")
+  tasks               ProjectTask[]          @relation("TaskAssignee")
+  tasksCreated        ProjectTask[]          @relation("TaskCreator")
+  workLogs            ProjectWorkLog[]
+  projectComments     ProjectComment[]
+  attachments         Attachment[]
+  risksRaised         ProjectRisk[]          @relation("RiskRaisedBy")
+  risksOwned          ProjectRisk[]          @relation("RiskOwner")
+  blockersRaised      ProjectBlocker[]       @relation("BlockerRaisedBy")
+  blockersResolved    ProjectBlocker[]       @relation("BlockerResolvedBy")
+  scopeChangesRequested ScopeChangeRequest[] @relation("ScopeChangeRequester")
+  scopeChangesDecided ScopeChangeRequest[]   @relation("ScopeChangeDecider")
+  completionSubmissions CompletionSubmission[] @relation("CompletionSubmitter")
+  completionReviews   CompletionSubmission[] @relation("CompletionReviewer")
+  acceptanceDecisions AcceptanceDecision[]
+  closures            ProjectClosure[]
+  projectHistory      ProjectStatusHistory[]
+  feedback            Feedback[]
+  complaintsRaised    Complaint[]            @relation("ComplaintRaiser")
+  complaintsAssigned  Complaint[]            @relation("ComplaintAssignee")
+  reports             ReportRecord[]         @relation("ReportGenerator")
+  reportsFinalized    ReportRecord[]         @relation("ReportFinalizer")
+  knowledgeAuthored   KnowledgeDocument[]    @relation("KnowledgeAuthor")
+  knowledgeApproved   KnowledgeDocument[]    @relation("KnowledgeApprover")
+  aiInteractions      AIInteraction[]
+  aiRecsCreated       AIRecommendation[]     @relation("AIRecCreator")
+  aiRecsReviewed      AIRecommendation[]     @relation("AIRecReviewer")
+  invitationsSent     Invitation[]           @relation("InvitationSender")
+  mdasReviewed        Mda[]                  @relation("MdaReviewer")
+  mdasRegistered      Mda[]                  @relation("MdaRegistrant")
+  settingsUpdated     SystemSetting[]
+  commentReads        CommentRead[]
+
+  @@index([status])
+  @@index([userType])
+  @@index([departmentId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  description String?
+  isSystem    Boolean          @default(false)
+  // Which kind of user may hold this role (prevents granting KATDICT roles to MDA users)
+  userType    UserType
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  module      String
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  userId      String
+  roleId      String
+  grantedById String?
+  grantedAt   DateTime @default(now())
+  user        User     @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  grantedBy   User?    @relation("RoleGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  userId      String
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  mfaVerified Boolean   @default(false)
+  ip          String?
+  userAgent   String?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  MFA_CHALLENGE
+}
+
+model VerificationToken {
+  id        String    @id @default(cuid())
+  type      TokenType
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model LoginAttempt {
+  id        BigInt   @id @default(autoincrement())
+  email     String
+  ip        String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
+
+// ---------------------------------------------------------------------------
+// Organisation: departments and MDAs
+// ---------------------------------------------------------------------------
+
+model Department {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String    @unique
+  description String?
+  headId      String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  head              User?               @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+  members           User[]              @relation("DepartmentMembers")
+  projects          Project[]
+  requestsAssigned  ServiceRequest[]    @relation("RequestDepartment")
+  suggestedServices ServiceDefinition[]
+}
+
+enum MdaCategory {
+  MINISTRY
+  DEPARTMENT
+  AGENCY
+  COMMISSION
+  BOARD
+  PARASTATAL
+  INSTITUTION
+  OTHER
+}
+
+enum MdaStatus {
+  DIRECTORY          // imported from the verified official directory; not yet claimed
+  PENDING_REVIEW     // registration/profile submitted, awaiting KATDICT review
+  CHANGES_REQUESTED  // KATDICT requested corrections
+  APPROVED           // approved by KATDICT, awaiting activation by MDA administrator
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+model Mda {
+  id                  String      @id @default(cuid())
+  name                String      @unique
+  abbreviation        String      @unique
+  category            MdaCategory
+  supervisingMinistryId String?
+  address             String?
+  officialEmail       String?
+  officialPhone       String?
+  contactPersonName   String?
+  contactPersonDesignation String?
+  ictContactName      String?
+  ictContactEmail     String?
+  ictContactPhone     String?
+  website             String?
+  logoAttachmentId    String?
+  description         String?
+  status              MdaStatus   @default(PENDING_REVIEW)
+  isDirectoryVerified Boolean     @default(false)
+  // MDA internal policy: may MDA_STAFF submit requests (otherwise only MDA admins)
+  staffMaySubmit      Boolean     @default(true)
+  registeredById      String?
+  submittedAt         DateTime?
+  reviewedById        String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  approvedAt          DateTime?
+  activatedAt         DateTime?
+  suspendedAt         DateTime?
+  suspensionReason    String?
+  version             Int         @default(0)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  supervisingMinistry Mda?        @relation("Supervision", fields: [supervisingMinistryId], references: [id], onDelete: SetNull)
+  supervisedMdas      Mda[]       @relation("Supervision")
+  registeredBy        User?       @relation("MdaRegistrant", fields: [registeredById], references: [id], onDelete: SetNull)
+  reviewedBy          User?       @relation("MdaReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  members             MdaMembership[]
+  invitations         Invitation[]
+  requests            ServiceRequest[]
+  projects            Project[]
+  complaints          Complaint[]
+  feedback            Feedback[]
+  knowledgeDocs       KnowledgeDocument[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model MdaMembership {
+  id        String   @id @default(cuid())
+  // Assumption: one user belongs to exactly one MDA.
+  userId    String   @unique
+  mdaId     String
+  isPrimaryRepresentative Boolean @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mda       Mda      @relation(fields: [mdaId], references: [id], onDelete: Restrict)
+
+  @@index([mdaId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  name        String?
+  roleKeys    String[]
+  mdaId       String?
+  departmentId String?
+  tokenHash   String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  mda         Mda?      @relation(fields: [mdaId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([mdaId])
+}
+
+// ---------------------------------------------------------------------------
+// Service catalog and approval policies
+// ---------------------------------------------------------------------------
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  // Default service-level targets (overridable per service definition)
+  slaTriageHours     Int @default(48)
+  slaAssessmentDays  Int @default(10)
+  slaDeliveryDays    Int @default(90)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  services    ServiceDefinition[]
+}
+
+model ServiceDefinition {
+  id                     String    @id @default(cuid())
+  categoryId             String
+  code                   String    @unique
+  name                   String
+  description            String
+  eligibility            String?
+  requiredInformation    String[]  @default([])
+  requiredAttachments    String[]  @default([])
+  estimatedMinDays       Int?
+  estimatedMaxDays       Int?
+  assessmentChecklist    String[]  @default([])
+  defaultPriority        Priority  @default(MEDIUM)
+  // JSON rules evaluated by src/modules/catalog/priority.ts
+  priorityRules          Json?
+  approvalPolicyId       String?
+  suggestedDepartmentId  String?
+  standardDeliverables   String[]  @default([])
+  slaTriageHours         Int?
+  slaAssessmentDays      Int?
+  slaDeliveryDays        Int?
+  active                 Boolean   @default(true)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  category            ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  approvalPolicy      ApprovalPolicy? @relation(fields: [approvalPolicyId], references: [id], onDelete: SetNull)
+  suggestedDepartment Department?     @relation(fields: [suggestedDepartmentId], references: [id], onDelete: SetNull)
+  requests            ServiceRequest[]
+
+  @@index([categoryId])
+}
+
+model ApprovalPolicy {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  isDefault   Boolean        @default(false)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  steps       ApprovalStep[]
+  services    ServiceDefinition[]
+}
+
+model ApprovalStep {
+  id                 String    @id @default(cuid())
+  policyId           String
+  sequence           Int
+  name               String
+  // Permission the approver must hold, e.g. "request.approve.technical"
+  requiredPermission String
+  // Thresholds: step only applies when ANY configured threshold is met.
+  // When no threshold is configured the step always applies.
+  minPriority        Priority?
+  minEstimatedCostNgn Decimal? @db.Decimal(16, 2)
+  minEstimatedEffortDays Int?
+  policy             ApprovalPolicy     @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  decisions          ApprovalDecision[]
+
+  @@unique([policyId, sequence])
+}
+
+// ---------------------------------------------------------------------------
+// Service requests
+// ---------------------------------------------------------------------------
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  INITIAL_TRIAGE
+  UNDER_ASSESSMENT
+  NEEDS_INFORMATION
+  TECHNICAL_EVALUATION
+  SCOPE_ESTIMATION
+  APPROVAL_REVIEW
+  RETURNED_FOR_REVISION
+  APPROVED
+  REJECTED
+  DEFERRED
+  WITHDRAWN
+  PROJECT_INITIATED
+}
+
+model Counter {
+  key   String @id
+  value Int
+}
+
+model ServiceRequest {
+  id                    String        @id @default(cuid())
+  reference             String?       @unique
+  mdaId                 String
+  serviceId             String
+  createdById           String
+  status                RequestStatus @default(DRAFT)
+  title                 String
+  problemStatement      String?
+  currentSituation      String?
+  desiredOutcome        String?
+  businessJustification String?
+  expectedBeneficiaries String?
+  estimatedUsers        Int?
+  urgency               Priority      @default(MEDIUM)
+  preferredCompletionDate DateTime?
+  existingSystems       String?
+  technicalInformation  String?
+  knownDependencies     String?
+  expectedDeliverables  String?
+  successCriteria       String?
+  institutionalImpact   String?
+  operationalUrgency    String?
+  legalConsiderations   String?
+  consequencesOfInaction String?
+  // Set by KATDICT
+  priority              Priority?
+  assignedDepartmentId  String?
+  assessorId            String?
+  estimatedEffortDays   Int?
+  estimatedCostNgn      Decimal?      @db.Decimal(16, 2)
+  proposedScope         String?
+  submissionKey         String?       @unique
+  submittedAt           DateTime?
+  triagedAt             DateTime?
+  decidedAt             DateTime?
+  approvedAt            DateTime?
+  version               Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  mda                Mda                    @relation(fields: [mdaId], references: [id], onDelete: Restrict)
+  service            ServiceDefinition      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  createdBy          User                   @relation("RequestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedDepartment Department?            @relation("RequestDepartment", fields: [assignedDepartmentId], references: [id], onDelete: SetNull)
+  assessor           User?                  @relation("RequestAssessor", fields: [assessorId], references: [id], onDelete: SetNull)
+  history            RequestStatusHistory[]
+  assessments        RequestAssessment[]
+  approvalDecisions  ApprovalDecision[]
+  comments           RequestComment[]
+  attachments        Attachment[]
+  project            Project?
+  complaints         Complaint[]
+
+  @@index([mdaId, status])
+  @@index([status])
+  @@index([serviceId])
+  @@index([assignedDepartmentId])
+  @@index([submittedAt])
+  @@index([createdById])
+}
+
+model RequestStatusHistory {
+  id         BigInt         @id @default(autoincrement())
+  requestId  String
+  fromStatus RequestStatus?
+  toStatus   RequestStatus
+  action     String
+  actorId    String?
+  reason     String?
+  createdAt  DateTime       @default(now())
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor      User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+}
+
+enum AssessmentStage {
+  TRIAGE
+  ASSESSMENT
+  TECHNICAL
+  SCOPE
+}
+
+model RequestAssessment {
+  id                  String          @id @default(cuid())
+  requestId           String
+  stage               AssessmentStage
+  assessorId          String
+  checklist           Json?
+  findings            String
+  recommendation      String?
+  recommendedPriority Priority?
+  estimatedEffortDays Int?
+  estimatedCostNgn    Decimal?        @db.Decimal(16, 2)
+  proposedScope       String?
+  createdAt           DateTime        @default(now())
+  request             ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assessor            User            @relation(fields: [assessorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+}
+
+enum ApprovalOutcome {
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+model ApprovalDecision {
+  id         String          @id @default(cuid())
+  requestId  String
+  stepId     String
+  // Increments each time the request re-enters approval review
+  cycle      Int             @default(1)
+  decidedById String
+  outcome    ApprovalOutcome
+  reason     String?
+  createdAt  DateTime        @default(now())
+  request    ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  step       ApprovalStep    @relation(fields: [stepId], references: [id], onDelete: Restrict)
+  decidedBy  User            @relation(fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, stepId, cycle])
+  @@index([requestId])
+}
+
+enum Visibility {
+  INTERNAL
+  MDA_VISIBLE
+}
+
+enum CommentKind {
+  COMMENT
+  CLARIFICATION_REQUEST
+  CLARIFICATION_RESPONSE
+  DECISION
+}
+
+model RequestComment {
+  id         String         @id @default(cuid())
+  requestId  String
+  authorId   String
+  body       String
+  visibility Visibility     @default(MDA_VISIBLE)
+  kind       CommentKind    @default(COMMENT)
+  createdAt  DateTime       @default(now())
+  request    ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author     User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  APPROVED
+  PLANNING
+  ASSIGNED
+  AWAITING_ACKNOWLEDGMENT
+  IN_PROGRESS
+  ON_HOLD
+  BLOCKED
+  UNDER_REVIEW
+  AWAITING_MDA_ACCEPTANCE
+  ACCEPTED
+  CLOSED
+  CANCELLED
+}
+
+enum AcceptanceStatus {
+  NOT_SUBMITTED
+  UNDER_KATDICT_REVIEW
+  RETURNED_FOR_CORRECTION
+  AWAITING_MDA
+  ACCEPTED
+  DISPUTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportingFrequency {
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+}
+
+model Project {
+  id                 String           @id @default(cuid())
+  reference          String           @unique
+  requestId          String           @unique
+  mdaId              String
+  departmentId       String?
+  projectManagerId   String?
+  title              String
+  description        String
+  approvedScope      String
+  status             ProjectStatus    @default(APPROVED)
+  acceptanceStatus   AcceptanceStatus @default(NOT_SUBMITTED)
+  priority           Priority         @default(MEDIUM)
+  riskLevel          RiskLevel        @default(LOW)
+  reportingFrequency ReportingFrequency @default(MONTHLY)
+  estimatedEffortDays Int?
+  requiredResources  String?
+  dependenciesNote   String?
+  // Cached value derived from milestones/tasks (src/modules/projects/progress.ts).
+  progressPercent    Int              @default(0)
+  startDate          DateTime?
+  plannedEndDate     DateTime?
+  actualEndDate      DateTime?
+  assignedAt         DateTime?
+  acknowledgedAt     DateTime?
+  startedAt          DateTime?
+  completionSubmittedAt DateTime?
+  acceptedAt         DateTime?
+  closedAt           DateTime?
+  remediationCount   Int              @default(0)
+  version            Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  request        ServiceRequest       @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  mda            Mda                  @relation(fields: [mdaId], references: [id], onDelete: Restrict)
+  department     Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  projectManager User?                @relation("ProjectManager", fields: [projectManagerId], references: [id], onDelete: SetNull)
+  history        ProjectStatusHistory[]
+  assignments    ProjectAssignment[]
+  milestones     ProjectMilestone[]
+  tasks          ProjectTask[]
+  workLogs       ProjectWorkLog[]
+  comments       ProjectComment[]
+  attachments    Attachment[]
+  deliverables   ProjectDeliverable[]
+  risks          ProjectRisk[]
+  blockers       ProjectBlocker[]
+  scopeChanges   ScopeChangeRequest[]
+  completionSubmissions CompletionSubmission[]
+  acceptanceDecisions AcceptanceDecision[]
+  closure        ProjectClosure?
+  feedback       Feedback[]
+  complaints     Complaint[]
+  reports        ReportRecord[]
+  knowledgeDocs  KnowledgeDocument[]
+
+  @@index([mdaId, status])
+  @@index([status])
+  @@index([departmentId, status])
+  @@index([projectManagerId])
+  @@index([plannedEndDate])
+}
+
+model ProjectStatusHistory {
+  id         BigInt         @id @default(autoincrement())
+  projectId  String
+  fromStatus ProjectStatus?
+  toStatus   ProjectStatus
+  action     String
+  actorId    String?
+  reason     String?
+  createdAt  DateTime       @default(now())
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor      User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+}
+
+enum AssignmentRole {
+  PROJECT_MANAGER
+  OFFICER
+}
+
+enum AssignmentStatus {
+  PENDING_ACKNOWLEDGMENT
+  ACKNOWLEDGED
+  REASSIGNED
+  REMOVED
+}
+
+model ProjectAssignment {
+  id               String           @id @default(cuid())
+  projectId        String
+  assigneeId       String
+  assignedById     String
+  role             AssignmentRole
+  status           AssignmentStatus @default(PENDING_ACKNOWLEDGMENT)
+  instructions     String?
+  expectedOutcomes String?
+  assignedAt       DateTime         @default(now())
+  expectedAckBy    DateTime
+  acknowledgedAt   DateTime?
+  escalatedAt      DateTime?
+  endedAt          DateTime?
+  endReason        String?
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee         User             @relation("AssignmentAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignedBy       User             @relation("AssignmentAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([assigneeId, status])
+  @@index([status, expectedAckBy])
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProjectMilestone {
+  id          String          @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  dueDate     DateTime?
+  weight      Int             @default(1)
+  sortOrder   Int             @default(0)
+  status      MilestoneStatus @default(PENDING)
+  visibleToMda Boolean        @default(true)
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       ProjectTask[]
+
+  @@index([projectId])
+  @@index([dueDate])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+model ProjectTask {
+  id          String       @id @default(cuid())
+  projectId   String
+  milestoneId String?
+  title       String
+  description String?
+  assigneeId  String?
+  createdById String
+  status      TaskStatus   @default(TODO)
+  dueDate     DateTime?
+  weight      Int          @default(1)
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone   ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  dependsOn   TaskDependency[] @relation("TaskDependent")
+  dependents  TaskDependency[] @relation("TaskPrerequisite")
+  workLogs    ProjectWorkLog[]
+  blockers    ProjectBlocker[]
+
+  @@index([projectId, status])
+  @@index([assigneeId, status])
+  @@index([dueDate])
+}
+
+model TaskDependency {
+  taskId      String
+  dependsOnId String
+  task        ProjectTask @relation("TaskDependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn   ProjectTask @relation("TaskPrerequisite", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, dependsOnId])
+}
+
+model ProjectWorkLog {
+  id          String       @id @default(cuid())
+  projectId   String
+  taskId      String?
+  userId      String
+  workDate    DateTime
+  hours       Decimal      @db.Decimal(5, 2)
+  description String
+  createdAt   DateTime     @default(now())
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        ProjectTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, workDate])
+}
+
+model ProjectComment {
+  id         String      @id @default(cuid())
+  projectId  String
+  authorId   String
+  body       String
+  visibility Visibility  @default(INTERNAL)
+  kind       CommentKind @default(COMMENT)
+  mentions   String[]    @default([])
+  createdAt  DateTime    @default(now())
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  reads      CommentRead[]
+
+  @@index([projectId, createdAt])
+}
+
+model CommentRead {
+  commentId String
+  userId    String
+  readAt    DateTime       @default(now())
+  comment   ProjectComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  QUARANTINED
+  NOT_SCANNED
+}
+
+enum AttachmentCategory {
+  REQUEST_DOCUMENT
+  TECHNICAL_SPECIFICATION
+  PROPOSAL
+  ARCHITECTURE
+  TEST_EVIDENCE
+  COMPLETION_REPORT
+  USER_MANUAL
+  TRAINING_MATERIAL
+  HANDOVER
+  DELIVERABLE
+  EVIDENCE
+  KNOWLEDGE
+  LOGO
+  OTHER
+}
+
+model Attachment {
+  id             String             @id @default(cuid())
+  storageKey     String             @unique
+  originalName   String
+  sizeBytes      Int
+  contentType    String
+  sha256         String
+  category       AttachmentCategory @default(OTHER)
+  visibility     Visibility         @default(MDA_VISIBLE)
+  scanStatus     ScanStatus         @default(NOT_SCANNED)
+  uploadedById   String
+  requestId      String?
+  projectId      String?
+  deliverableId  String?
+  completionSubmissionId String?
+  knowledgeDocumentId String?
+  createdAt      DateTime           @default(now())
+  uploadedBy     User               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  request        ServiceRequest?    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  project        Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverable    ProjectDeliverable? @relation(fields: [deliverableId], references: [id], onDelete: SetNull)
+  completionSubmission CompletionSubmission? @relation(fields: [completionSubmissionId], references: [id], onDelete: SetNull)
+  knowledgeDocument KnowledgeDocument? @relation(fields: [knowledgeDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([projectId])
+}
+
+enum DeliverableStatus {
+  PLANNED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+model ProjectDeliverable {
+  id          String            @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  required    Boolean           @default(true)
+  status      DeliverableStatus @default(PLANNED)
+  submittedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([projectId])
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATED
+  CLOSED
+}
+
+model ProjectRisk {
+  id          String     @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  likelihood  Int        // 1..5
+  impact      Int        // 1..5
+  mitigation  String?
+  status      RiskStatus @default(OPEN)
+  ownerId     String?
+  raisedById  String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner       User?      @relation("RiskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  raisedBy    User       @relation("RiskRaisedBy", fields: [raisedById], references: [id], onDelete: Restrict)
+
+  @@index([projectId, status])
+}
+
+model ProjectBlocker {
+  id           String    @id @default(cuid())
+  projectId    String
+  taskId       String?
+  description  String
+  raisedById   String
+  raisedAt     DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolution   String?
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task         ProjectTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  raisedBy     User      @relation("BlockerRaisedBy", fields: [raisedById], references: [id], onDelete: Restrict)
+  resolvedBy   User?     @relation("BlockerResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, resolvedAt])
+}
+
+enum RequestingParty {
+  KATDICT
+  MDA
+}
+
+enum ScopeChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+// Holds both the change request and its decision (ScopeChangeDecision is a
+// logical entity represented by the decided* columns).
+model ScopeChangeRequest {
+  id                 String            @id @default(cuid())
+  projectId          String
+  requestedById      String
+  requestingParty    RequestingParty
+  originalScope      String
+  proposedChange     String
+  reason             String
+  impactAssessment   String?
+  scheduleImpactDays Int?
+  resourceImpact     String?
+  status             ScopeChangeStatus @default(PENDING)
+  decidedById        String?
+  decidedAt          DateTime?
+  decisionReason     String?
+  createdAt          DateTime          @default(now())
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedBy        User              @relation("ScopeChangeRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy          User?             @relation("ScopeChangeDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+}
+
+enum CompletionReviewStatus {
+  SUBMITTED
+  APPROVED
+  EVIDENCE_REQUESTED
+  RETURNED
+  REJECTED
+}
+
+model CompletionSubmission {
+  id                      String                 @id @default(cuid())
+  projectId               String
+  cycle                   Int
+  submittedById           String
+  summary                 String
+  deliverablesSummary     String
+  evidenceSummary         String?
+  technicalDocumentation  String?
+  outstandingIssues       String?
+  handoverInformation     String?
+  trainingRecords         String?
+  maintenanceInstructions String?
+  recommendedNextSteps    String?
+  status                  CompletionReviewStatus @default(SUBMITTED)
+  reviewedById            String?
+  reviewedAt              DateTime?
+  reviewNotes             String?
+  createdAt               DateTime               @default(now())
+  project                 Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submittedBy             User                   @relation("CompletionSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy              User?                  @relation("CompletionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  attachments             Attachment[]
+  acceptanceDecisions     AcceptanceDecision[]
+
+  @@unique([projectId, cycle])
+}
+
+enum AcceptanceOutcome {
+  ACCEPTED
+  REJECTED
+  CLARIFICATION_REQUESTED
+  INCOMPLETE_DELIVERABLES
+}
+
+model AcceptanceDecision {
+  id           String            @id @default(cuid())
+  projectId    String
+  submissionId String
+  decidedById  String
+  outcome      AcceptanceOutcome
+  reason       String?
+  createdAt    DateTime          @default(now())
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submission   CompletionSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  decidedBy    User              @relation(fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+}
+
+enum ClosureType {
+  STANDARD
+  EXCEPTIONAL
+}
+
+model ProjectClosure {
+  id                      String      @id @default(cuid())
+  projectId               String      @unique
+  closedById              String
+  closureType             ClosureType @default(STANDARD)
+  justification           String?
+  actualOutcome           String?
+  lessonsLearned          String?
+  followUpRecommendations String?
+  closedAt                DateTime    @default(now())
+  project                 Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  closedBy                User        @relation(fields: [closedById], references: [id], onDelete: Restrict)
+}
+
+// ProjectReview (logical) is represented by MDA feedback with ratings.
+model Feedback {
+  id        String   @id @default(cuid())
+  mdaId     String
+  projectId String?
+  userId    String
+  rating    Int      // 1..5
+  comments  String?
+  createdAt DateTime @default(now())
+  mda       Mda      @relation(fields: [mdaId], references: [id], onDelete: Restrict)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, userId])
+  @@index([mdaId])
+}
+
+enum ComplaintStatus {
+  OPEN
+  UNDER_REVIEW
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+model Complaint {
+  id           String          @id @default(cuid())
+  reference    String          @unique
+  mdaId        String
+  projectId    String?
+  requestId    String?
+  raisedById   String
+  subject      String
+  description  String
+  priority     Priority        @default(MEDIUM)
+  status       ComplaintStatus @default(OPEN)
+  assignedToId String?
+  resolution   String?
+  escalatedAt  DateTime?
+  resolvedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  mda          Mda             @relation(fields: [mdaId], references: [id], onDelete: Restrict)
+  project      Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  request      ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  raisedBy     User            @relation("ComplaintRaiser", fields: [raisedById], references: [id], onDelete: Restrict)
+  assignedTo   User?           @relation("ComplaintAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([mdaId, status])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications and outbox
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  link      String?
+  mandatory Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  userId       String
+  type         String
+  emailEnabled Boolean @default(true)
+  inAppEnabled Boolean @default(true)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  DEAD
+}
+
+model OutboxEvent {
+  id            String       @id @default(cuid())
+  kind          String       // e.g. "email"
+  payload       Json
+  dedupeKey     String?      @unique
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  maxAttempts   Int          @default(6)
+  nextAttemptAt DateTime     @default(now())
+  lockedAt      DateTime?
+  lastError     String?
+  processedAt   DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([status, nextAttemptAt])
+}
+
+// ---------------------------------------------------------------------------
+// Audit (append-only, hash-chained)
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id            BigInt   @id @default(autoincrement())
+  actorId       String?
+  actorEmail    String?
+  action        String
+  entityType    String
+  entityId      String?
+  before        Json?
+  after         Json?
+  reason        String?
+  correlationId String?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  prevHash      String?
+  hash          String
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Reports, knowledge and AI
+// ---------------------------------------------------------------------------
+
+enum ReportStatus {
+  DRAFT
+  FINAL
+}
+
+model ReportRecord {
+  id            String       @id @default(cuid())
+  type          String       // PROJECT_CLOSURE | MONTHLY | QUARTERLY | ...
+  title         String
+  projectId     String?
+  version       Int          @default(1)
+  status        ReportStatus @default(DRAFT)
+  parameters    Json?
+  data          Json
+  aiSummaryDraft String?
+  summary       String?
+  generatedById String?
+  generatedAt   DateTime     @default(now())
+  finalizedById String?
+  finalizedAt   DateTime?
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  generatedBy   User?        @relation("ReportGenerator", fields: [generatedById], references: [id], onDelete: SetNull)
+  finalizedBy   User?        @relation("ReportFinalizer", fields: [finalizedById], references: [id], onDelete: SetNull)
+
+  @@unique([type, projectId, version])
+  @@index([type, generatedAt])
+}
+
+enum KnowledgeCategory {
+  COMPLETED_PROJECT
+  REUSABLE_SOLUTION
+  TECHNICAL_DOCUMENTATION
+  LESSON_LEARNED
+  COMMON_INCIDENT
+  IMPLEMENTATION_PATTERN
+  TRAINING_RESOURCE
+}
+
+enum KnowledgeVisibility {
+  KATDICT_ONLY
+  ALL_USERS
+  MDA_SPECIFIC
+}
+
+enum KnowledgeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model KnowledgeDocument {
+  id           String              @id @default(cuid())
+  title        String
+  summary      String
+  body         String
+  category     KnowledgeCategory
+  tags         String[]            @default([])
+  visibility   KnowledgeVisibility @default(KATDICT_ONLY)
+  mdaId        String?
+  projectId    String?
+  status       KnowledgeStatus     @default(DRAFT)
+  authorId     String
+  approvedById String?
+  publishedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  mda          Mda?                @relation(fields: [mdaId], references: [id], onDelete: SetNull)
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  author       User                @relation("KnowledgeAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  approvedBy   User?               @relation("KnowledgeApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  attachments  Attachment[]
+
+  @@index([status, visibility])
+  @@index([category])
+}
+
+model AIInteraction {
+  id            String   @id @default(cuid())
+  userId        String?
+  feature       String
+  provider      String
+  model         String?
+  status        String   // OK | ERROR | DISABLED | FALLBACK
+  inputTokens   Int?
+  outputTokens  Int?
+  latencyMs     Int?
+  error         String?
+  entityType    String?
+  entityId      String?
+  createdAt     DateTime @default(now())
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([feature, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum RecommendationStatus {
+  PROPOSED
+  ACCEPTED
+  DISMISSED
+}
+
+model AIRecommendation {
+  id           String               @id @default(cuid())
+  feature      String
+  entityType   String
+  entityId     String
+  payload      Json
+  source       String               // "ai" | "rules"
+  status       RecommendationStatus @default(PROPOSED)
+  createdById  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  createdBy    User?                @relation("AIRecCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy   User?                @relation("AIRecReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([feature, status])
+}
+
+model SystemSetting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
