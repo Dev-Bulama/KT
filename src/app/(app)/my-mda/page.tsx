@@ -43,7 +43,7 @@ export default async function MyMda() {
         <Card><CardHeader title="Institutional profile" /><CardBody>
           {canEdit ? (
             <ActionForm action={updateProfileAction} submitLabel={m.status === "CHANGES_REQUESTED" ? "Save and resubmit" : "Save profile"}>
-              {(e) => (<><input type="hidden" name="id" value={m.id} /><input type="hidden" name="version" value={m.version} /><MdaProfileFields m={m} errors={e} ministries={ministries} lockName={m.isDirectoryVerified} /></>)}
+              <><input type="hidden" name="id" value={m.id} /><input type="hidden" name="version" value={m.version} /><MdaProfileFields m={m} ministries={ministries} lockName={m.isDirectoryVerified} /></>
             </ActionForm>
           ) : <p className="text-sm text-muted">The profile can be edited by your MDA administrator.</p>}
         </CardBody></Card>

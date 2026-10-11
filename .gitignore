@@ -12,3 +12,4 @@ test-results
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+.next-e2e

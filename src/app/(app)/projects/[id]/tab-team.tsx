@@ -50,24 +50,24 @@ export async function TeamTab({ p, actor }: TabProps) {
       {canInitial && (
         <Card><CardHeader title="Assign project team" description="Assignees receive email and in-app notifications and must acknowledge." /><CardBody>
           <ActionForm action={assignAction} submitLabel="Create assignments">
-            {(e) => (<>
+            <>
               {hidden}<input type="hidden" name="version" value={p.version} />
               <div className="grid gap-4 md:grid-cols-2">
                 {mode === "global" && <Field label="Responsible department" name="departmentId"><Select defaultValue={p.departmentId ?? ""}><option value="">— Select —</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select></Field>}
-                <Field label="Project manager" name="projectManagerId" required error={e.projectManagerId}><Select defaultValue=""><option value="">— Select —</option>{officers.map((o) => <option key={o.id} value={o.id}>{o.name}{o.department ? ` (${o.department.name})` : ""}</option>)}</Select></Field>
+                <Field label="Project manager" name="projectManagerId" required><Select defaultValue=""><option value="">— Select —</option>{officers.map((o) => <option key={o.id} value={o.id}>{o.name}{o.department ? ` (${o.department.name})` : ""}</option>)}</Select></Field>
                 <Field label="ICT officers" name="officerIds" hint="Hold Ctrl/Cmd to select several."><Select multiple className="h-28">{officers.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>
                 <Field label="Start date" name="startDate"><Input type="date" /></Field>
                 <Field label="Delivery target (planned completion)" name="plannedEndDate"><Input type="date" defaultValue={p.plannedEndDate?.toISOString().slice(0, 10)} /></Field>
                 <Field label="Estimated effort (days)" name="estimatedEffortDays"><Input type="number" min={1} defaultValue={p.estimatedEffortDays ?? ""} /></Field>
                 <Field label="Risk level" name="riskLevel"><Select defaultValue={p.riskLevel}>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((r) => <option key={r} value={r}>{humanize(r)}</option>)}</Select></Field>
                 <Field label="Reporting frequency" name="reportingFrequency"><Select defaultValue={p.reportingFrequency}>{["WEEKLY", "FORTNIGHTLY", "MONTHLY"].map((r) => <option key={r} value={r}>{humanize(r)}</option>)}</Select></Field>
-                <Field label="Instructions" name="instructions" required error={e.instructions} className="md:col-span-2"><Textarea rows={3} /></Field>
-                <Field label="Expected outcomes" name="expectedOutcomes" required error={e.expectedOutcomes} className="md:col-span-2"><Textarea rows={2} /></Field>
+                <Field label="Instructions" name="instructions" required className="md:col-span-2"><Textarea rows={3} /></Field>
+                <Field label="Expected outcomes" name="expectedOutcomes" required className="md:col-span-2"><Textarea rows={2} /></Field>
                 <Field label="Required resources" name="requiredResources"><Textarea rows={2} /></Field>
                 <Field label="Dependencies" name="dependenciesNote"><Textarea rows={2} /></Field>
               </div>
               <Checkbox name="allowOverCapacity" label="Allow assignment above recorded capacity (justify in instructions)" />
-            </>)}
+            </>
           </ActionForm>
         </CardBody></Card>
       )}

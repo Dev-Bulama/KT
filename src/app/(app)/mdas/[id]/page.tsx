@@ -73,7 +73,7 @@ export default async function MdaDetail({ params }: { params: Promise<{ id: stri
           {can(actor, "mda.manage") && (
             <Card><CardHeader title="Correct profile (KATDICT)" /><CardBody>
               <ActionForm action={updateProfileAction} submitLabel="Save profile">
-                {(e) => (<><input type="hidden" name="id" value={m.id} /><input type="hidden" name="version" value={m.version} /><MdaProfileFields m={m} errors={e} ministries={ministries} /></>)}
+                <><input type="hidden" name="id" value={m.id} /><input type="hidden" name="version" value={m.version} /><MdaProfileFields m={m} ministries={ministries} /></>
               </ActionForm>
             </CardBody></Card>
           )}

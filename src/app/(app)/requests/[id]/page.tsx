@@ -173,21 +173,19 @@ export default async function RequestDetail({ params, searchParams }: { params: 
             return (
               <Card key={a}><CardHeader title={rule.label} /><CardBody>
                 <ActionForm action={transitionAction} submitLabel={rule.label} submitVariant={a === "reject" ? "danger" : a === "withdraw" || a === "defer" ? "secondary" : "primary"} confirm={a === "reject" || a === "withdraw" ? `${rule.label}? This cannot be undone.` : undefined}>
-                  {(e) => (
-                    <>
+                  <>
                       <input type="hidden" name="id" value={r.id} />
                       <input type="hidden" name="version" value={r.version} />
                       <input type="hidden" name="action" value={a} />
                       {a === "accept_for_assessment" && (
                         <>
-                          <Field label="Priority" name="priority" required error={e.priority}><Select defaultValue={r.priority ?? r.urgency}>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => <option key={p} value={p}>{humanize(p)}</option>)}</Select></Field>
-                          <Field label="Responsible department" name="assignedDepartmentId" required error={e.assignedDepartmentId}><Select defaultValue={r.assignedDepartment?.id ?? ""}><option value="">— Select —</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select></Field>
+                          <Field label="Priority" name="priority" required><Select defaultValue={r.priority ?? r.urgency}>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => <option key={p} value={p}>{humanize(p)}</option>)}</Select></Field>
+                          <Field label="Responsible department" name="assignedDepartmentId" required><Select defaultValue={r.assignedDepartment?.id ?? ""}><option value="">— Select —</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select></Field>
                           <Field label="Assessor (optional)" name="assessorId"><Select defaultValue=""><option value="">— Unassigned —</option>{officers.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>
                         </>
                       )}
                       <Field label={a === "request_information" ? "Information requested" : a === "mda_respond" ? "Your response" : rule.reasonRequired ? "Reason" : "Note (optional)"} name="reason" required={rule.reasonRequired}><Textarea rows={3} /></Field>
                     </>
-                  )}
                 </ActionForm>
               </CardBody></Card>
             );
@@ -196,8 +194,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
           {canAssess && (
             <Card><CardHeader title={`Record ${humanize(stage)} assessment`} /><CardBody>
               <ActionForm action={assessmentAction} submitLabel="Save assessment" resetOnSuccess>
-                {(e) => (
-                  <>
+                <>
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="stage" value={stage} />
                     {r.service.assessmentChecklist.length > 0 && (
@@ -205,18 +202,17 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                         {r.service.assessmentChecklist.map((c) => <label key={c} className="flex items-center gap-2"><input type="checkbox" name={`check:${c}`} /> {c}</label>)}
                       </fieldset>
                     )}
-                    <Field label="Findings" name="findings" required error={e.findings}><Textarea rows={3} /></Field>
+                    <Field label="Findings" name="findings" required><Textarea rows={3} /></Field>
                     <Field label="Recommendation" name="recommendation"><Textarea rows={2} /></Field>
                     <Field label="Recommended priority" name="recommendedPriority"><Select defaultValue=""><option value="">—</option>{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => <option key={p} value={p}>{humanize(p)}</option>)}</Select></Field>
                     {stage === "SCOPE" && (
                       <>
-                        <Field label="Proposed scope" name="proposedScope" required error={e.proposedScope}><Textarea rows={4} defaultValue={r.proposedScope ?? ""} /></Field>
-                        <Field label="Estimated effort (days)" name="estimatedEffortDays" required error={e.estimatedEffortDays}><Input type="number" min={1} defaultValue={r.estimatedEffortDays ?? ""} /></Field>
-                        <Field label="Estimated cost (NGN)" name="estimatedCostNgn" error={e.estimatedCostNgn}><Input type="number" min={0} step="1000" defaultValue={r.estimatedCostNgn?.toString() ?? ""} /></Field>
+                        <Field label="Proposed scope" name="proposedScope" required><Textarea rows={4} defaultValue={r.proposedScope ?? ""} /></Field>
+                        <Field label="Estimated effort (days)" name="estimatedEffortDays" required><Input type="number" min={1} defaultValue={r.estimatedEffortDays ?? ""} /></Field>
+                        <Field label="Estimated cost (NGN)" name="estimatedCostNgn"><Input type="number" min={0} step="1000" defaultValue={r.estimatedCostNgn?.toString() ?? ""} /></Field>
                       </>
                     )}
                   </>
-                )}
               </ActionForm>
             </CardBody></Card>
           )}

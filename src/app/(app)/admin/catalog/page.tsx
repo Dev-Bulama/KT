@@ -22,11 +22,11 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
 
   const serviceForm = (categoryId: string, s?: (typeof catalog)[number]["services"][number]) => (
     <ActionForm action={serviceAction} submitLabel={s ? "Save service" : "Add service"} resetOnSuccess={!s}>
-      {(e) => (<>
+      <>
         {s && <input type="hidden" name="id" value={s.id} />}
         <input type="hidden" name="categoryId" value={categoryId} />
         <div className="grid gap-3 md:grid-cols-3">
-          <Field label="Code" name="code" required error={e.code}><Input defaultValue={s?.code} /></Field>
+          <Field label="Code" name="code" required><Input defaultValue={s?.code} /></Field>
           <Field label="Name" name="name" required className="md:col-span-2"><Input defaultValue={s?.name} /></Field>
           <Field label="Description" name="description" required className="md:col-span-3"><Textarea rows={2} defaultValue={s?.description} /></Field>
           <Field label="Eligibility" name="eligibility"><Input defaultValue={s?.eligibility ?? ""} /></Field>
@@ -42,10 +42,10 @@ export default async function CatalogAdmin({ searchParams }: { searchParams: Pro
           <Field label="Required attachments (one per line)" name="requiredAttachments"><Textarea rows={3} defaultValue={lines(s?.requiredAttachments ?? [])} /></Field>
           <Field label="Standard deliverables (one per line)" name="standardDeliverables"><Textarea rows={3} defaultValue={lines(s?.standardDeliverables ?? [])} /></Field>
           <Field label="Assessment checklist (one per line)" name="assessmentChecklist" className="md:col-span-1"><Textarea rows={3} defaultValue={lines(s?.assessmentChecklist ?? [])} /></Field>
-          <Field label="Priority rules (JSON)" name="priorityRules" className="md:col-span-2" error={e.priorityRules} hint='e.g. [{"when":{"urgency":"CRITICAL"},"priority":"CRITICAL"},{"when":{"estimatedUsersGte":1000},"priority":"HIGH"}]'><Textarea rows={3} defaultValue={s?.priorityRules ? JSON.stringify(s.priorityRules) : ""} className="font-mono text-xs" /></Field>
+          <Field label="Priority rules (JSON)" name="priorityRules" className="md:col-span-2" hint='e.g. [{"when":{"urgency":"CRITICAL"},"priority":"CRITICAL"},{"when":{"estimatedUsersGte":1000},"priority":"HIGH"}]'><Textarea rows={3} defaultValue={s?.priorityRules ? JSON.stringify(s.priorityRules) : ""} className="font-mono text-xs" /></Field>
         </div>
         <Checkbox name="active" label="Active (available to MDAs)" defaultChecked={s?.active ?? true} />
-      </>)}
+      </>
     </ActionForm>
   );
 

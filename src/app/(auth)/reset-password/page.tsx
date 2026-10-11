@@ -13,13 +13,11 @@ export default async function ResetPassword({ searchParams }: { searchParams: Pr
     <>
       <h1 className="text-xl font-semibold">Choose a new password</h1>
       <ActionForm action={resetPasswordAction} submitLabel="Update password" className="mt-5">
-        {(e) => (
-          <>
+        <>
             <input type="hidden" name="token" value={token} />
-            <Field label="New password" name="password" required hint="At least 12 characters with upper-case, lower-case letters and a number." error={e.password}><Input type="password" autoComplete="new-password" /></Field>
+            <Field label="New password" name="password" required hint="At least 12 characters with upper-case, lower-case letters and a number."><Input type="password" autoComplete="new-password" /></Field>
             <Field label="Confirm password" name="confirmPassword" required><Input type="password" autoComplete="new-password" /></Field>
           </>
-        )}
       </ActionForm>
     </>
   );

@@ -19,16 +19,15 @@ export default async function Register() {
         Registration must be completed by an authorised representative using an official email address. After you verify your email, KATDICT reviews the institutional profile before the account is activated. Entering an MDA&apos;s name does not grant access to its records.
       </p>
       <ActionForm action={registerAction} submitLabel="Submit registration" className="mt-8">
-        {(e) => (
-          <>
+        <>
             <fieldset className="rounded-[var(--radius-card)] border border-line bg-white p-5">
               <legend className="px-1 text-sm font-semibold">1. Authorised representative</legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Full name" name="repName" required><Input autoComplete="name" /></Field>
                 <Field label="Designation" name="repDesignation" required><Input /></Field>
-                <Field label="Official email" name="repEmail" required error={e.repEmail}><Input type="email" autoComplete="email" /></Field>
+                <Field label="Official email" name="repEmail" required><Input type="email" autoComplete="email" /></Field>
                 <Field label="Telephone" name="repPhone" required><Input type="tel" autoComplete="tel" /></Field>
-                <Field label="Password" name="password" required hint="At least 12 characters with upper-case, lower-case letters and a number." error={e.password}><Input type="password" autoComplete="new-password" /></Field>
+                <Field label="Password" name="password" required hint="At least 12 characters with upper-case, lower-case letters and a number."><Input type="password" autoComplete="new-password" /></Field>
                 <Field label="Confirm password" name="confirmPassword" required><Input type="password" autoComplete="new-password" /></Field>
               </div>
             </fieldset>
@@ -43,25 +42,24 @@ export default async function Register() {
                 </Field>
               )}
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Official MDA name" name="name" required error={e.name}><Input /></Field>
-                <Field label="Abbreviation" name="abbreviation" required error={e.abbreviation}><Input /></Field>
+                <Field label="Official MDA name" name="name" required><Input /></Field>
+                <Field label="Abbreviation" name="abbreviation" required><Input /></Field>
                 <Field label="Category" name="category" required>
                   <Select defaultValue="MINISTRY">{CATEGORIES.map((c) => <option key={c} value={c}>{humanize(c)}</option>)}</Select>
                 </Field>
-                <Field label="Official website" name="website" error={e.website}><Input type="url" placeholder="https://" /></Field>
-                <Field label="Physical address" name="address" required className="sm:col-span-2" error={e.address}><Input /></Field>
-                <Field label="Official email" name="officialEmail" required error={e.officialEmail}><Input type="email" /></Field>
-                <Field label="Official telephone" name="officialPhone" required error={e.officialPhone}><Input type="tel" /></Field>
+                <Field label="Official website" name="website"><Input type="url" placeholder="https://" /></Field>
+                <Field label="Physical address" name="address" required className="sm:col-span-2"><Input /></Field>
+                <Field label="Official email" name="officialEmail" required><Input type="email" /></Field>
+                <Field label="Official telephone" name="officialPhone" required><Input type="tel" /></Field>
                 <Field label="Contact person" name="contactPersonName" required><Input /></Field>
                 <Field label="Contact person's designation" name="contactPersonDesignation" required><Input /></Field>
                 <Field label="ICT contact person" name="ictContactName"><Input /></Field>
-                <Field label="ICT contact email" name="ictContactEmail" error={e.ictContactEmail}><Input type="email" /></Field>
+                <Field label="ICT contact email" name="ictContactEmail"><Input type="email" /></Field>
                 <Field label="ICT contact telephone" name="ictContactPhone"><Input type="tel" /></Field>
                 <Field label="Organisational details" name="description" className="sm:col-span-2" hint="Mandate, departments, number of staff, locations."><Textarea /></Field>
               </div>
             </fieldset>
           </>
-        )}
       </ActionForm>
       <p className="mt-6 text-sm text-muted">Already registered? <Link href="/login">Sign in</Link>. Staff of a registered MDA should ask their MDA administrator for an invitation.</p>
     </div>

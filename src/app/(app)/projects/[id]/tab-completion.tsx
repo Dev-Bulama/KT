@@ -46,9 +46,9 @@ export function CompletionTab({ p, actor, isAssigned, internal }: TabProps) {
       {canSubmit && (
         <Card><CardHeader title="Submit for completion review" description="All milestones must be complete or cancelled, and required deliverables submitted. Upload evidence under Deliverables & files first." /><CardBody>
           <ActionForm action={completionAction} submitLabel="Submit for review" submitVariant="accent">
-            {(e) => (<>{hidden}
-              <Field label="Summary of work performed" name="summary" required error={e.summary}><Textarea rows={3} /></Field>
-              <Field label="Deliverables" name="deliverablesSummary" required error={e.deliverablesSummary}><Textarea rows={2} /></Field>
+            <>{hidden}
+              <Field label="Summary of work performed" name="summary" required><Textarea rows={3} /></Field>
+              <Field label="Deliverables" name="deliverablesSummary" required><Textarea rows={2} /></Field>
               <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Evidence" name="evidenceSummary"><Textarea rows={2} /></Field>
                 <Field label="Technical documentation" name="technicalDocumentation"><Textarea rows={2} /></Field>
@@ -58,7 +58,7 @@ export function CompletionTab({ p, actor, isAssigned, internal }: TabProps) {
                 <Field label="Maintenance instructions" name="maintenanceInstructions"><Textarea rows={2} /></Field>
               </div>
               <Field label="Recommended next steps" name="recommendedNextSteps"><Textarea rows={2} /></Field>
-            </>)}
+            </>
           </ActionForm>
         </CardBody></Card>
       )}
@@ -85,14 +85,14 @@ export function CompletionTab({ p, actor, isAssigned, internal }: TabProps) {
       {(canClose || canExceptional) && (
         <Card><CardHeader title={canClose ? "Close project" : "Exceptional closure"} description={canClose ? "Generates the official completion report. The delivery team cannot close its own project." : "Only for formally authorised cases. Requires a detailed justification and is fully audited."} /><CardBody>
           <ActionForm action={closeAction} submitLabel={canClose ? "Close project" : "Close under exceptional policy"} submitVariant={canClose ? "primary" : "danger"} confirm="Close this project? This is final.">
-            {(e) => (<>{hidden}
+            <>{hidden}
               {!canClose && <input type="hidden" name="exceptional" value="true" />}
-              <Field label="Actual outcome" name="actualOutcome" required error={e.actualOutcome}><Textarea rows={3} /></Field>
+              <Field label="Actual outcome" name="actualOutcome" required><Textarea rows={3} /></Field>
               <Field label="Lessons learned" name="lessonsLearned" hint="Becomes a draft knowledge-repository entry for approval."><Textarea rows={3} /></Field>
               <Field label="Follow-up recommendations" name="followUpRecommendations"><Textarea rows={2} /></Field>
               {canClose && canExceptional && <Checkbox name="exceptional" label="Use exceptional closure instead" />}
               {(!canClose || canExceptional) && <Field label="Exceptional closure justification" name="justification"><Textarea rows={2} /></Field>}
-            </>)}
+            </>
           </ActionForm>
         </CardBody></Card>
       )}

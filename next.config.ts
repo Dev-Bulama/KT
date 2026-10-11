@@ -23,6 +23,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Separate build dir for the E2E dev server so it can run alongside a developer server.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   serverExternalPackages: ["@node-rs/argon2", "pg"],
   experimental: {

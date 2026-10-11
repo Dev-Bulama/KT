@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { FieldErrorText } from "@/components/forms/form-errors";
 
 const field = "block w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-slate-50";
 
@@ -28,7 +29,8 @@ export function Field({ label, name, hint, error, required, children, className 
 }) {
   const errs = Array.isArray(error) ? error : error ? [error] : [];
   const hintId = hint ? `${name}-hint` : undefined;
-  const errId = errs.length ? `${name}-error` : undefined;
+  // Always reference the error element id: it is rendered only when errors exist (explicit or from ActionForm context).
+  const errId = `${name}-error`;
   const child = React.cloneElement(children, {
     id: (children.props.id as string) ?? name,
     name: (children.props.name as string) ?? name,
@@ -44,7 +46,7 @@ export function Field({ label, name, hint, error, required, children, className 
       </Label>
       {child}
       {hint && <p id={hintId} className="text-xs text-muted">{hint}</p>}
-      {errs.length > 0 && <p id={errId} className="text-xs text-danger-700" role="alert">{errs.join(" ")}</p>}
+      <FieldErrorText name={name} id={errId} explicit={errs} />
     </div>
   );
 }

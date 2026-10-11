@@ -35,12 +35,12 @@ export function ChangesTab({ p, actor, canWork }: TabProps) {
       {canRequest && (
         <Card><CardHeader title="Request a scope change" /><CardBody>
           <ActionForm action={scopeChangeAction} submitLabel="Submit change request" resetOnSuccess>
-            {(e) => (<>{hidden}
-              <Field label="Proposed change" name="proposedChange" required error={e.proposedChange}><Textarea rows={3} /></Field>
-              <Field label="Reason" name="reason" required error={e.reason}><Textarea rows={2} /></Field>
+            <>{hidden}
+              <Field label="Proposed change" name="proposedChange" required><Textarea rows={3} /></Field>
+              <Field label="Reason" name="reason" required><Textarea rows={2} /></Field>
               <Field label="Impact assessment" name="impactAssessment"><Textarea rows={2} /></Field>
               <div className="grid gap-3 sm:grid-cols-2"><Field label="Schedule impact (days)" name="scheduleImpactDays"><Input type="number" /></Field><Field label="Resource implications" name="resourceImpact"><Input /></Field></div>
-            </>)}
+            </>
           </ActionForm>
         </CardBody></Card>
       )}

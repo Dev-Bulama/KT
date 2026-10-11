@@ -47,12 +47,12 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
           {can(actor, "complaint.submit") && (
             <Card><CardHeader title="Raise a complaint" /><CardBody>
               <ActionForm action={complaintAction} submitLabel="Submit complaint" resetOnSuccess>
-                {(e) => (<>
-                  <Field label="Subject" name="subject" required error={e.subject}><Input /></Field>
-                  <Field label="Description" name="description" required error={e.description}><Textarea rows={4} /></Field>
+                <>
+                  <Field label="Subject" name="subject" required><Input /></Field>
+                  <Field label="Description" name="description" required><Textarea rows={4} /></Field>
                   <Field label="Priority" name="priority"><Select defaultValue="MEDIUM">{["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => <option key={p} value={p}>{humanize(p)}</option>)}</Select></Field>
                   <Field label="Related project (optional)" name="projectId"><Select defaultValue=""><option value="">—</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.reference} — {p.title}</option>)}</Select></Field>
-                </>)}
+                </>
               </ActionForm>
             </CardBody></Card>
           )}

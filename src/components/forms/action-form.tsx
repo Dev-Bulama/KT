@@ -7,6 +7,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
 import { Alert } from "@/components/ui/misc";
 import type { ActionState } from "@/lib/action";
 import { cn } from "@/lib/utils";
+import { FormErrorsContext } from "./form-errors";
 
 type ServerAction = (prev: ActionState, fd: FormData) => Promise<ActionState>;
 
@@ -23,13 +24,14 @@ export function SubmitButton({ children, pendingText, ...props }: ButtonProps & 
 
 /**
  * Generic progressive-enhancement form bound to a server action.
- * Children may be a render function receiving field errors.
+ * Children must be plain React nodes (Server Components cannot pass functions
+ * to client components); field errors reach <Field> through FormErrorsContext.
  */
 export function ActionForm({
   action, children, submitLabel = "Save", submitVariant, className, resetOnSuccess, confirm, hideSubmit, successRedirect, inline,
 }: {
   action: ServerAction;
-  children?: React.ReactNode | ((errors: Record<string, string[]>) => React.ReactNode);
+  children?: React.ReactNode;
   submitLabel?: string;
   submitVariant?: ButtonProps["variant"];
   className?: string;
@@ -55,7 +57,7 @@ export function ActionForm({
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
     >
-      {typeof children === "function" ? children(errors) : children}
+      <FormErrorsContext.Provider value={errors}>{children}</FormErrorsContext.Provider>
       {state.message && !inline && <Alert tone={state.ok ? "success" : "danger"}>{state.message}</Alert>}
       {!hideSubmit && <SubmitButton variant={submitVariant}>{submitLabel}</SubmitButton>}
       {state.message && inline && <span role="status" className={cn("text-xs", state.ok ? "text-accent-700" : "text-danger-700")}>{state.message}</span>}
