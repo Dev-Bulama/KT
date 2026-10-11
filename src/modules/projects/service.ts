@@ -107,11 +107,11 @@ export async function getProject(actor: Actor, id: string) {
     projectManager: { select: { id: true, name: true, email: true } },
     assignments: { orderBy: { assignedAt: "desc" }, include: { assignee: { select: { id: true, name: true, email: true } }, assignedBy: { select: { name: true } } } },
     milestones: { where: internal ? {} : { visibleToMda: true }, orderBy: [{ sortOrder: "asc" }, { dueDate: "asc" }], include: { _count: { select: { tasks: true } } } },
-    tasks: internal ? { orderBy: [{ dueDate: "asc" }], include: { assignee: { select: { id: true, name: true } }, dependsOn: true } } : false,
+    tasks: { orderBy: [{ dueDate: "asc" }], include: { assignee: { select: { id: true, name: true } }, dependsOn: true } },
     deliverables: { orderBy: { createdAt: "asc" }, include: { attachments: { where: internal ? {} : { visibility: "MDA_VISIBLE" } } } },
-    risks: internal ? { orderBy: { createdAt: "desc" }, include: { owner: { select: { name: true } } } } : false,
-    blockers: internal ? { orderBy: { raisedAt: "desc" }, include: { raisedBy: { select: { name: true } } } } : false,
-    workLogs: internal ? { orderBy: { workDate: "desc" }, take: 50, include: { user: { select: { name: true } } } } : false,
+    risks: { orderBy: { createdAt: "desc" }, include: { owner: { select: { name: true } } } },
+    blockers: { orderBy: { raisedAt: "desc" }, include: { raisedBy: { select: { name: true } } } },
+    workLogs: { orderBy: { workDate: "desc" }, take: 50, include: { user: { select: { name: true } } } },
     scopeChanges: { orderBy: { createdAt: "desc" }, include: { requestedBy: { select: { name: true } }, decidedBy: { select: { name: true } } } },
     completionSubmissions: { orderBy: { cycle: "desc" }, include: { submittedBy: { select: { name: true } }, reviewedBy: { select: { name: true } }, attachments: { where: internal ? {} : { visibility: "MDA_VISIBLE" } } } },
     acceptanceDecisions: { orderBy: { createdAt: "desc" }, include: { decidedBy: { select: { name: true } } } },
@@ -122,6 +122,16 @@ export async function getProject(actor: Actor, id: string) {
     feedback: { select: { id: true, rating: true, comments: true, userId: true, createdAt: true } },
   });
   const isAssigned = await isAssignedToProject(prisma, actor.id, id);
+  if (!internal) {
+    // Internal working records are never sent to MDA users.
+    const project = {
+      ...p, tasks: [], risks: [], blockers: [], workLogs: [], requiredResources: null, dependenciesNote: null,
+      assignments: p.assignments.map((a) => ({ ...a, instructions: null, expectedOutcomes: null, assignee: { ...a.assignee, email: "" }, assignedBy: { name: "KATDICT" } })),
+      projectManager: p.projectManager ? { ...p.projectManager, email: "" } : null,
+      completionSubmissions: p.completionSubmissions.map((c) => ({ ...c, reviewedBy: c.reviewedBy ? { name: "KATDICT" } : null })),
+    };
+    return { project, internal, isAssigned };
+  }
   return { project: p, internal, isAssigned };
 }
 

@@ -193,7 +193,8 @@ export async function getRequest(actor: Actor, id: string) {
         include: { author: { select: { name: true, userType: true } } },
       },
       attachments: { where: internal ? {} : { visibility: "MDA_VISIBLE" }, orderBy: { createdAt: "asc" } },
-      assessments: internal ? { orderBy: { createdAt: "asc" }, include: { assessor: { select: { name: true } } } } : false,
+      // Loaded for typing; stripped below for MDA users.
+      assessments: { orderBy: { createdAt: "asc" }, include: { assessor: { select: { name: true } } } },
       approvalDecisions: { orderBy: { createdAt: "asc" }, include: { step: true, decidedBy: { select: { name: true } } } },
       project: { select: { id: true, reference: true, status: true } },
     },

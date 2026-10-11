@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/*
+ * KATDICT design tokens. Initial direction (institutional navy, restrained
+ * green accent, amber/red status colours) — not an approved brand specification.
+ * System font stack: no web-font download (low-bandwidth friendly).
+ */
+@theme {
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --color-navy-950: #061a3a;
+  --color-navy-900: #0b2a5b;
+  --color-navy-800: #133a78;
+  --color-navy-700: #1d4b94;
+  --color-navy-100: #e3eaf6;
+  --color-navy-50: #f2f5fb;
+  --color-accent-700: #0f6b45;
+  --color-accent-600: #128052;
+  --color-accent-100: #dcf3e7;
+  --color-surface: #ffffff;
+  --color-canvas: #f4f6fa;
+  --color-line: #dde3ee;
+  --color-ink: #0f1d3a;
+  --color-muted: #55657f;
+  --color-warn-700: #8a5300;
+  --color-warn-100: #fdf0d5;
+  --color-danger-700: #a8201a;
+  --color-danger-100: #fde3e1;
+  --color-info-700: #1d4b94;
+  --color-info-100: #e3eaf6;
+  --radius-card: 10px;
+}
+
+@layer base {
+  html { color-scheme: light; }
+  body { @apply bg-canvas text-ink antialiased; font-size: 15px; }
+  h1, h2, h3 { @apply text-navy-950; }
+  a { @apply text-navy-700; }
+  :focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+  ::selection { background: #cfe0ff; }
+  table { border-collapse: collapse; }
+}
+
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 12px; top: 12px; z-index: 100; background: #fff; padding: 8px 12px; border-radius: 6px; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}
