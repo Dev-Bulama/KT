@@ -31,9 +31,14 @@ export async function notify(db: Db, input: NotifyInput): Promise<void> {
     const pref = u.notificationPrefs[0];
     const inApp = mandatory || !pref || pref.inAppEnabled;
     const email = (input.email ?? true) && (mandatory || !pref || pref.emailEnabled);
-    if (inApp) {
+    if (input.dedupeKey) {
+      const seen = await db.notification.findUnique({ where: { userId_dedupeKey: { userId: u.id, dedupeKey: input.dedupeKey } } });
+      if (seen) continue; // already notified for this event
+    }
+    if (inApp || input.dedupeKey) {
+      // With a dedupe key the row is always written (hidden if in-app is disabled) so repeats are suppressed.
       await db.notification.create({
-        data: { userId: u.id, type: input.type, title: input.title, body: input.body, link: input.link ?? null, mandatory },
+        data: { userId: u.id, type: input.type, title: input.title, body: input.body, link: input.link ?? null, mandatory, dedupeKey: input.dedupeKey ?? null, readAt: inApp ? null : new Date() },
       });
     }
     if (email) {

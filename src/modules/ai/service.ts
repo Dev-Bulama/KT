@@ -45,18 +45,18 @@ export async function runAI<T>(
       })
       .catch(() => undefined);
 
-  const useRules = async (notice: string, status: string, error?: string) => {
+  const fallbackTo = async (notice: string, status: string, error?: string) => {
     await log(status, { error });
     return { source: "rules" as const, data: await fallback(), notice };
   };
 
-  if (!features[feature]) return useRules("This AI feature is disabled by the administrator. Showing rule-based analysis.", "DISABLED");
-  if (!provider) return useRules("External AI is not configured. Showing deterministic rule-based analysis.", "DISABLED");
-  if (!approved) return useRules("External AI processing has not been approved under the data-governance policy. Showing rule-based analysis.", "DISABLED");
+  if (!features[feature]) return fallbackTo("This AI feature is disabled by the administrator. Showing rule-based analysis.", "DISABLED");
+  if (!provider) return fallbackTo("External AI is not configured. Showing deterministic rule-based analysis.", "DISABLED");
+  if (!approved) return fallbackTo("External AI processing has not been approved under the data-governance policy. Showing rule-based analysis.", "DISABLED");
 
   const limit = Number(process.env.AI_MAX_CALLS_PER_USER_PER_HOUR ?? 60);
   const rl = await rateLimit(`ai:${actor.id}`, limit, 3600);
-  if (!rl.allowed) return useRules("AI usage limit reached for this hour. Showing rule-based analysis.", "RATE_LIMITED");
+  if (!rl.allowed) return fallbackTo("AI usage limit reached for this hour. Showing rule-based analysis.", "RATE_LIMITED");
 
   const started = Date.now();
   try {
@@ -65,7 +65,7 @@ export async function runAI<T>(
     return { source: "ai", data: out.data, notice: null };
   } catch (err) {
     logger.warn("ai.call_failed", { feature, error: (err as Error).message });
-    return useRules("The AI service was unavailable or returned an invalid response. Showing rule-based analysis instead.", "FALLBACK", (err as Error).message);
+    return fallbackTo("The AI service was unavailable or returned an invalid response. Showing rule-based analysis instead.", "FALLBACK", (err as Error).message);
   }
 }
 

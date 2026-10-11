@@ -1176,10 +1176,12 @@ model Notification {
   body      String
   link      String?
   mandatory Boolean   @default(false)
+  dedupeKey String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt])
   @@index([userId, createdAt])
 }
