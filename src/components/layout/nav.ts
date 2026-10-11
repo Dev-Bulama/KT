@@ -57,9 +57,17 @@ export const NAV: NavSection[] = [
   },
 ];
 
-export function visibleNav(actor: Actor): NavSection[] {
+export interface ClientNavSection {
+  label?: string;
+  items: { href: string; label: string; icon: string }[];
+}
+
+/** Filters navigation by permission and returns plain serialisable data for the client sidebar. */
+export function visibleNav(actor: Actor): ClientNavSection[] {
   return NAV.map((s) => ({
-    ...s,
-    items: s.items.filter((i) => (!i.any || i.any.some((p) => actor.permissions.has(p))) && (!i.when || i.when(actor))),
+    label: s.label,
+    items: s.items
+      .filter((i) => (!i.any || i.any.some((p) => actor.permissions.has(p))) && (!i.when || i.when(actor)))
+      .map(({ href, label, icon }) => ({ href, label, icon })),
   })).filter((s) => s.items.length);
 }

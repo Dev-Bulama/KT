@@ -1,8 +1,7 @@
-import { requirePageActor } from "@/modules/auth/current";
+import { requirePageActorAny } from "@/modules/auth/current";
 import { canAny } from "@/modules/rbac/authorize";
 import { getAllSettings } from "@/modules/settings/service";
 import { getAIProvider } from "@/modules/ai/provider";
-import { ForbiddenError } from "@/lib/errors";
 import { PageHeader, Alert } from "@/components/ui/misc";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +13,7 @@ import { settingAction } from "../actions";
 export const metadata = { title: "System settings" };
 
 export default async function Settings() {
-  const actor = await requirePageActor();
-  if (!canAny(actor, ["system.settings.manage", "system.ai.configure", "escalation.configure"])) throw new ForbiddenError();
+  await requirePageActorAny(["system.settings.manage", "system.ai.configure", "escalation.configure"]);
   const settings = await getAllSettings();
   const provider = getAIProvider();
   const groups = [...new Set(settings.map((s) => s.key.split(".")[0]))];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requirePageActor } from "@/modules/auth/current";
+import { requirePageActorAny } from "@/modules/auth/current";
 import { assertCanAny } from "@/modules/rbac/authorize";
 import { listApprovalQueue } from "@/modules/requests/service";
 import { PageHeader, EmptyState } from "@/components/ui/misc";
@@ -10,8 +10,7 @@ import { formatNaira } from "@/lib/utils";
 export const metadata = { title: "Approvals" };
 
 export default async function Approvals() {
-  const actor = await requirePageActor();
-  assertCanAny(actor, ["request.approve.technical", "request.approve.department", "request.approve.executive"]);
+  const actor = await requirePageActorAny(["request.approve.technical", "request.approve.department", "request.approve.executive"]);
   const queue = await listApprovalQueue(actor);
   const mine = queue.filter((q) => q.canDecide);
   const others = queue.filter((q) => !q.canDecide);

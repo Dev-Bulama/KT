@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { requirePageActor } from "@/modules/auth/current";
+import { requirePageActorAny } from "@/modules/auth/current";
 import { can, canAny } from "@/modules/rbac/authorize";
-import { ForbiddenError } from "@/lib/errors";
 import { demandByCategoryAndQuarter, mdaIntelligence, officerWorkload, scorecard } from "@/modules/analytics/metrics";
 import { recurringNeeds, sharedSolutionOpportunities } from "@/modules/intelligence/service";
 import { PageHeader, StatCard, EmptyState } from "@/components/ui/misc";
@@ -17,8 +16,7 @@ export const metadata = { title: "Intelligence" };
 
 export default async function Intelligence({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const actor = await requirePageActor();
-  if (!canAny(actor, ["analytics.executive", "analytics.operations", "analytics.department"])) throw new ForbiddenError();
+  const actor = await requirePageActorAny(["analytics.executive", "analytics.operations", "analytics.department"]);
   const tabs = [
     { key: "scorecard", label: "Service delivery scorecard" },
     { key: "map", label: "Statewide ICT map" },

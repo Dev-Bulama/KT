@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NavIcon } from "./nav-icon";
-import type { NavSection } from "./nav";
+import type { ClientNavSection } from "./nav";
 
-export function SidebarLinks({ sections }: { sections: NavSection[] }) {
+export function SidebarLinks({ sections }: { sections: ClientNavSection[] }) {
   const path = usePathname();
   return (
     <nav aria-label="Application" className="space-y-5">

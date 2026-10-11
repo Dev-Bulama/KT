@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requirePageActor } from "@/modules/auth/current";
+import { requirePageActorAny } from "@/modules/auth/current";
 import { can, canAny } from "@/modules/rbac/authorize";
 import { listMdas } from "@/modules/mdas/service";
 import { prisma } from "@/lib/db";
@@ -9,14 +9,12 @@ import { Input, Select } from "@/components/ui/form";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { Pagination, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { formatDate, humanize } from "@/lib/utils";
-import { ForbiddenError } from "@/lib/errors";
 
 export const metadata = { title: "MDA directory" };
 
 export default async function MdasPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const actor = await requirePageActor();
-  if (!canAny(actor, ["mda.read.all", "mda.review"])) throw new ForbiddenError();
+  const actor = await requirePageActorAny(["mda.read.all", "mda.review"]);
   const [data, pending] = await Promise.all([
     listMdas(actor, { q: sp.q, status: sp.status, category: sp.category, page: Number(sp.page ?? 1) }),
     prisma.mda.count({ where: { status: "PENDING_REVIEW", submittedAt: { not: null } } }),

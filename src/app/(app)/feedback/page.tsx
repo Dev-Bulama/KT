@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { requirePageActor } from "@/modules/auth/current";
+import { requirePageActorAny } from "@/modules/auth/current";
 import { can, canAny } from "@/modules/rbac/authorize";
 import { listComplaints, listFeedback } from "@/modules/feedback/service";
 import { prisma } from "@/lib/db";
 import { projectScope } from "@/modules/rbac/scope";
-import { ForbiddenError } from "@/lib/errors";
 import { PageHeader, EmptyState } from "@/components/ui/misc";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
@@ -19,8 +18,7 @@ export const metadata = { title: "Feedback & complaints" };
 
 export default async function FeedbackPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const actor = await requirePageActor();
-  if (!canAny(actor, ["feedback.submit", "feedback.read.all", "complaint.submit", "complaint.manage", "complaint.read.all"])) throw new ForbiddenError();
+  const actor = await requirePageActorAny(["feedback.submit", "feedback.read.all", "complaint.submit", "complaint.manage", "complaint.read.all"]);
   const tab = sp.tab === "complaints" ? "complaints" : "feedback";
   const [feedback, complaints, projects] = await Promise.all([
     listFeedback(actor), listComplaints(actor, sp.status),

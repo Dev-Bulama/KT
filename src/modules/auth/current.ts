@@ -51,3 +51,10 @@ export async function requirePageActor(permission?: Permission): Promise<Actor> 
   }
   return actor;
 }
+
+/** Page guard requiring ANY of the permissions; redirects with a notice instead of throwing. */
+export async function requirePageActorAny(permissions: Permission[]): Promise<Actor> {
+  const actor = await requirePageActor();
+  if (!permissions.some((p) => actor.permissions.has(p))) redirect("/dashboard?denied=1");
+  return actor;
+}
