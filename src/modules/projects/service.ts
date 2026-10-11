@@ -196,11 +196,10 @@ export async function escalationRecipients(db: Db, departmentId: string | null):
 /** Recomputes the cached progress percentage from milestones/tasks; audits changes. */
 export async function recalculateProgress(tx: Tx, projectId: string, actorId: string | null): Promise<number> {
   const method = await getSetting("progress.method");
-  const [project, milestones, tasks] = await Promise.all([
-    tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { progressPercent: true } }),
-    tx.projectMilestone.findMany({ where: { projectId }, select: { id: true, weight: true, status: true } }),
-    tx.projectTask.findMany({ where: { projectId }, select: { weight: true, status: true, milestoneId: true } }),
-  ]);
+  // Sequential: queries on a transaction client share one connection.
+  const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { progressPercent: true } });
+  const milestones = await tx.projectMilestone.findMany({ where: { projectId }, select: { id: true, weight: true, status: true } });
+  const tasks = await tx.projectTask.findMany({ where: { projectId }, select: { weight: true, status: true, milestoneId: true } });
   const next = calculateProgress(method, milestones, tasks);
   if (next !== project.progressPercent) {
     await tx.project.update({ where: { id: projectId }, data: { progressPercent: next } });

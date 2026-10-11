@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { Priority } from "@/generated/prisma/enums";
 
-const text = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : undefined));
+const text = (max: number) => z.string().trim().max(max).nullish().transform((v) => (v ? v : undefined));
 const required = (label: string, min: number, max: number) =>
   z.string().trim().min(min, `${label} is required (at least ${min} characters)`).max(max);
 
 const dateInput = z
   .union([z.string(), z.date()])
-  .optional()
+  .nullish()
   .transform((v, ctx) => {
     if (!v) return undefined;
     const d = v instanceof Date ? v : new Date(v);
@@ -27,7 +27,7 @@ export const requestDraftSchema = z.object({
   desiredOutcome: text(5000),
   businessJustification: text(5000),
   expectedBeneficiaries: text(2000),
-  estimatedUsers: z.coerce.number().int().min(0).max(10_000_000).optional().or(z.literal("").transform(() => undefined)),
+  estimatedUsers: z.union([z.literal("").transform(() => undefined), z.null().transform(() => undefined), z.coerce.number().int().min(0).max(10_000_000)]).optional(),
   urgency: z.nativeEnum(Priority).default("MEDIUM"),
   preferredCompletionDate: dateInput,
   existingSystems: text(3000),
