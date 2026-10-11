@@ -33,6 +33,7 @@ This document records the security controls implemented in code, the residual ri
 - Malware scanning depends on an external scanner being configured.
 - `x-forwarded-for` trust assumes deployment behind Vercel's edge; adjust if self-hosting.
 - Email deliverability (SPF/DKIM/DMARC) must be configured on the sending domain.
+- `UNSAFE_ALLOW_LOCAL_STORAGE=true` disables the production refusal of local file storage. It exists only so the Playwright suite can run against a production build on one machine; it must never be set in Vercel or any deployed environment.
 
 ## 2. Emergency recovery of the Super Administrator
 
@@ -58,7 +59,7 @@ Audit events are retained for at least `retention.auditYears`. Archival (DBA pro
 - [ ] Demo data has **not** been loaded; `SEED_SUPER_ADMIN_*` variables removed after first deployment.
 - [ ] Database uses TLS (`sslmode=require`), a least-privilege application role (no superuser, no `ALTER`/`DISABLE TRIGGER`), and a separate migration role used only by `prisma migrate deploy`.
 - [ ] Object storage bucket is private (block public access), server-side encryption on, CORS not required (uploads go via the server).
-- [ ] `STORAGE_DRIVER=s3`, `EMAIL_PROVIDER=resend` with SPF/DKIM/DMARC on the sending domain.
+- [ ] `STORAGE_DRIVER=s3` and `UNSAFE_ALLOW_LOCAL_STORAGE` is **not** set; `EMAIL_PROVIDER=resend` with SPF/DKIM/DMARC on the sending domain.
 - [ ] `CRON_SECRET` set; crons configured (Vercel Pro or external scheduler).
 - [ ] AI disabled until data-governance approval is documented; if enabled, provider terms reviewed.
 - [ ] Malware scanning service connected (or a documented decision to accept `NOT_SCANNED` files).

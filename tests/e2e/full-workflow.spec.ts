@@ -164,9 +164,9 @@ test.describe.serial("KATDICT end-to-end workflow", () => {
     await ops.waitForURL(/\/projects\/[^/?]+\?tab=team/);
     projectId = new URL(ops.url()).pathname.split("/").pop()!;
     await submitForm(ops, "Create assignments", async (f) => {
-      await f.getByLabel("Project manager").selectOption({ label: "E2E officer (Software & Applications)" });
-      await f.getByLabel("Instructions").fill("Deliver the portal per the approved scope.");
-      await f.getByLabel("Expected outcomes").fill("Portal live and accepted by the MDA.");
+      await f.locator("#projectManagerId").selectOption({ label: "E2E officer (Software & Applications)" });
+      await f.locator("#instructions").fill("Deliver the portal per the approved scope.");
+      await f.locator("#expectedOutcomes").fill("Portal live and accepted by the MDA.");
     });
     await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "Project" WHERE id=$1`, [projectId]))[0].status).toBe("AWAITING_ACKNOWLEDGMENT");
 
@@ -176,7 +176,7 @@ test.describe.serial("KATDICT end-to-end workflow", () => {
     await officer.reload();
     await submitForm(officer, "Start implementation");
     await officer.goto(`/projects/${projectId}?tab=plan`);
-    await submitForm(officer, "Add milestone", async (f) => { await f.getByLabel("Title").fill("Portal built and deployed"); });
+    await submitForm(officer, "Add milestone", async (f) => { await f.locator("#title").fill("Portal built and deployed"); });
     await officer.reload();
     await submitForm(officer, "Mark complete");
     await expect.poll(async () => (await q<{ progressPercent: number }>(`SELECT "progressPercent" FROM "Project" WHERE id=$1`, [projectId]))[0].progressPercent).toBe(100);
@@ -186,18 +186,20 @@ test.describe.serial("KATDICT end-to-end workflow", () => {
     const officer = await signIn(browser, "officer@e2e.katdict.test");
     const deliverables = await q<{ id: string }>(`SELECT id FROM "ProjectDeliverable" WHERE "projectId"=$1`, [projectId]);
     for (const d of deliverables) {
-      await officer.goto(`/projects/${projectId}?tab=files`);
+      await officer.goto(`/projects/${projectId}?tab=files`, { waitUntil: "networkidle" });
       await officer.locator(`input#file-${d.id}`).setInputFiles({ name: "evidence.pdf", mimeType: "application/pdf", buffer: PDF });
       await officer.waitForLoadState("networkidle");
       await expect.poll(async () => Number((await q<{ n: string }>(`SELECT count(*) n FROM "Attachment" WHERE "deliverableId"=$1`, [d.id]))[0].n)).toBe(1);
-      await officer.goto(`/projects/${projectId}?tab=files`);
+      // The uploader reloads the page after a successful upload; wait for the submit control to appear.
+      await expect(formWith(officer, "Mark as submitted").first()).toBeVisible({ timeout: 60_000 });
+      await officer.waitForLoadState("networkidle");
       await formWith(officer, "Mark as submitted").first().getByRole("button").click();
       await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "ProjectDeliverable" WHERE id=$1`, [d.id]))[0].status).toBe("SUBMITTED");
     }
     await officer.goto(`/projects/${projectId}?tab=completion`);
     await submitForm(officer, "Submit for review", async (f) => {
-      await f.getByLabel("Summary of work performed").fill("Portal designed, built, tested and deployed; staff trained.");
-      await f.getByLabel("Deliverables").first().fill("All standard deliverables uploaded as evidence.");
+      await f.locator("#summary").fill("Portal designed, built, tested and deployed; staff trained.");
+      await f.locator("#deliverablesSummary").fill("All standard deliverables uploaded as evidence.");
     });
     await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "Project" WHERE id=$1`, [projectId]))[0].status).toBe("UNDER_REVIEW");
   });
@@ -205,22 +207,22 @@ test.describe.serial("KATDICT end-to-end workflow", () => {
   test("10. KATDICT reviews, 11. MDA accepts, 12. KATDICT closes, 13. report is generated", async ({ browser }) => {
     const reviewer = await signIn(browser, "reviewer@e2e.katdict.test");
     await reviewer.goto(`/projects/${projectId}?tab=completion`);
-    await submitForm(reviewer, "Record review", async (f) => { await f.getByLabel("Outcome").selectOption("APPROVED"); });
+    await submitForm(reviewer, "Record review", async (f) => { await f.locator("#outcome").selectOption("APPROVED"); });
     await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "Project" WHERE id=$1`, [projectId]))[0].status).toBe("AWAITING_MDA_ACCEPTANCE");
 
     const rep = await signIn(browser, REP.email, REP.password);
     await rep.goto(`/projects/${projectId}?tab=completion`);
     await submitForm(rep, "Submit decision", async (f) => {
       await f.getByLabel("Decision").selectOption("ACCEPTED");
-      await f.getByLabel("Rating (optional, 1–5)").selectOption("5");
+      await f.locator("#rating").selectOption("5");
     });
     await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "Project" WHERE id=$1`, [projectId]))[0].status).toBe("ACCEPTED");
 
     await reviewer.reload();
     reviewer.once("dialog", (d) => d.accept());
     await submitForm(reviewer, "Close project", async (f) => {
-      await f.getByLabel("Actual outcome").fill("Permit applications are now online; processing time reduced.");
-      await f.getByLabel("Lessons learned").fill("Early user involvement shortened acceptance.");
+      await f.locator("#actualOutcome").fill("Permit applications are now online; processing time reduced.");
+      await f.locator("#lessonsLearned").fill("Early user involvement shortened acceptance.");
     });
     await expect.poll(async () => (await q<{ status: string }>(`SELECT status FROM "Project" WHERE id=$1`, [projectId]))[0].status).toBe("CLOSED");
 

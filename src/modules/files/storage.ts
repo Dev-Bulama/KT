@@ -82,7 +82,7 @@ export function getStorage(): StorageDriver {
     if (!bucket) throw new Error("STORAGE_DRIVER=s3 requires OBJECT_STORAGE_BUCKET");
     driver = new S3Driver(bucket);
   } else {
-    if (process.env.NODE_ENV === "production") throw new Error("Local file storage is disabled in production. Configure S3-compatible storage.");
+    if (process.env.NODE_ENV === "production" && process.env.UNSAFE_ALLOW_LOCAL_STORAGE !== "true") throw new Error("Local file storage is disabled in production. Configure S3-compatible storage.");
     driver = new LocalDriver();
   }
   return driver;

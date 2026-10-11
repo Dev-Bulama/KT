@@ -4,7 +4,7 @@
 |---|---|---|---|---|
 | Unit | Vitest | `tests/unit/` | none | `npm run test:unit` |
 | Integration | Vitest | `tests/integration/` | real PostgreSQL (`TEST_DATABASE_URL`, default `katdict_test`), truncated + reseeded per file | `npm run test:integration` |
-| End-to-end | Playwright | `tests/e2e/` | real PostgreSQL (`E2E_DATABASE_URL`, default `katdict_e2e`), reset in global setup; app started on port 3100 | `npm run test:e2e` |
+| End-to-end | Playwright | `tests/e2e/` | real PostgreSQL (`E2E_DATABASE_URL`, default `katdict_e2e`), reset in global setup; app built (`next build` into `.next-e2e`) and started with `next start` on port 3100 | `npm run test:e2e` |
 
 Create the test databases once (local example):
 
@@ -31,6 +31,21 @@ Playwright uses its bundled Chromium; set `PLAYWRIGHT_CHROMIUM_PATH` to use a pr
 - Onboarding & authentication: registration → verification (single-use) → review → activation → invitation (single-use, role-restricted); impersonation by name blocked; no email enumeration; generic login errors, lockout, attempt recording; hashed session tokens; password reset revokes sessions; MFA enrolment, encrypted secret, challenge, session rotation, single-use recovery codes; directory import validation (all-or-nothing) and claiming.
 
 **End-to-end (browser, real app)** — `tests/e2e/full-workflow.spec.ts` covers the 14 required steps: MDA registration and email verification (link read from the outbox), KATDICT approval of the MDA and activation, request submission through the 5-step wizard, triage/assessment/technical evaluation/scoping, two-step approval, project initiation and assignment, officer acknowledgement and milestone update, evidence upload and completion submission, KATDICT review, MDA acceptance with rating, closure, completion report and PDF download, audit-trail verification, plus unauthenticated access checks.
+
+## Latest results (2026-10-11, this environment)
+
+| Check | Result |
+|---|---|
+| `npm run test:unit` + `npm run test:integration` | 11 files, **95/95 tests passed** |
+| `npm run test:e2e` (production build, Chromium) | **9/9 tests passed** (~1.1 min after build) |
+| `npm run typecheck` | clean |
+| `npm run lint` | 0 errors, 2 warnings (React Compiler notice about `react-hook-form`) |
+| `npm run build` | succeeded |
+| Manual crawl of 44 pages as operations, super-admin and MDA users (demo data, production server) | no page errors, no server errors |
+
+Not exercised: live Anthropic API calls (no API key in this environment — only the deterministic fallback paths were tested), Resend and S3 drivers against real providers.
+
+The E2E run sets `UNSAFE_ALLOW_LOCAL_STORAGE=true` so a production build can store uploads on local disk. This flag is for the test harness only. Set `E2E_DEV=1` to run against `next dev` instead (slower and less stable because of on-demand compilation).
 
 ## Test data
 

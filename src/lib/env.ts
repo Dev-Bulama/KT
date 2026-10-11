@@ -44,7 +44,7 @@ export function env(): Env {
   }
   const e = parsed.data;
   if (e.NODE_ENV === "production") {
-    if (e.STORAGE_DRIVER === "local") {
+    if (e.STORAGE_DRIVER === "local" && process.env.UNSAFE_ALLOW_LOCAL_STORAGE !== "true") {
       throw new Error("STORAGE_DRIVER=local is not permitted in production; configure S3-compatible storage.");
     }
     if (e.AUTH_SECRET.startsWith("dev-only")) {

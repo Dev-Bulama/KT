@@ -27,14 +27,17 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `npx next dev -p ${PORT}`,
+    // Production build: stable (no dev recompiles) and closest to the deployed app.
+    command: process.env.E2E_DEV ? `npx next dev -p ${PORT}` : `npx next build && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    timeout: 600_000,
     env: {
       DATABASE_URL: DB, DIRECT_URL: DB, AUTH_SECRET: "e2e-only-secret-0123456789abcdef0123456789abcdef", APP_URL: `http://localhost:${PORT}`,
       EMAIL_PROVIDER: "console", STORAGE_DRIVER: "local", AI_PROVIDER: "disabled", CRON_SECRET: "e2e-cron", LOG_LEVEL: "warn",
       NEXT_DIST_DIR: ".next-e2e",
+      // Test-only: permit local file storage in the production build used for E2E.
+      UNSAFE_ALLOW_LOCAL_STORAGE: "true",
     },
   },
 });
