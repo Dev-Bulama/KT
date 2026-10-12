@@ -1,3 +1,4 @@
+import { storageDriverKind } from "@/modules/files/storage";
 import { requirePageActor } from "@/modules/auth/current";
 import { prisma } from "@/lib/db";
 import { getAIProvider } from "@/modules/ai/provider";
@@ -40,7 +41,7 @@ export default async function Health() {
         <Table caption="AI usage"><THead><tr><TH>Feature</TH><TH>Status</TH><TH className="text-right">Calls</TH><TH className="text-right">Input tokens</TH><TH className="text-right">Output tokens</TH></tr></THead>
           <tbody>{ai.map((r) => <TR key={`${r.feature}-${r.status}`}><TD>{r.feature}</TD><TD>{r.status}</TD><TD className="text-right">{r._count._all}</TD><TD className="text-right">{r._sum.inputTokens ?? 0}</TD><TD className="text-right">{r._sum.outputTokens ?? 0}</TD></TR>)}{!ai.length && <TR><TD colSpan={5} className="text-muted">No AI calls in the last 24 hours.</TD></TR>}</tbody></Table>
       </Card>
-      <Card className="mt-6"><CardBody className="text-sm text-muted">Runtime: Node {process.version} · Email provider: {process.env.EMAIL_PROVIDER ?? "console"} · Storage: {process.env.STORAGE_DRIVER ?? "local"}</CardBody></Card>
+      <Card className="mt-6"><CardBody className="text-sm text-muted">Runtime: Node {process.version} · Email provider: {process.env.EMAIL_PROVIDER ?? "console"} · Storage: {storageDriverKind()}</CardBody></Card>
     </>
   );
 }

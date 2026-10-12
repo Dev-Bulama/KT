@@ -25,7 +25,7 @@ const schema = z.object({
   AI_MODEL: z.string().default("claude-opus-5-5"),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
   AI_MAX_CALLS_PER_USER_PER_HOUR: z.coerce.number().int().positive().default(60),
-  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  STORAGE_DRIVER: z.enum(["local", "s3", "database"]).optional(),
   OBJECT_STORAGE_ENDPOINT: z.string().optional(),
   OBJECT_STORAGE_REGION: z.string().default("auto"),
   OBJECT_STORAGE_BUCKET: z.string().optional(),

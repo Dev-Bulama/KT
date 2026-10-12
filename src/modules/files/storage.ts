@@ -8,6 +8,9 @@ import path from "node:path";
  * - "s3": any S3-compatible service (AWS S3, Cloudflare R2, MinIO, Supabase Storage S3 API).
  *   The bucket must be PRIVATE. Downloads use short-lived presigned URLs issued
  *   only after an authorisation check.
+ * - "database": file contents stored in PostgreSQL (StorageObject). Default in
+ *   production when no S3 bucket is configured; suits small deployments
+ *   (uploads are limited to a few MB). Downloads stream through the app after authorisation.
  * - "local": development-only driver writing to ./.local-storage (refused in production).
  */
 export interface StorageDriver {
@@ -72,12 +75,39 @@ class S3Driver implements StorageDriver {
   }
 }
 
+class DatabaseDriver implements StorageDriver {
+  readonly name = "database";
+  async put(key: string, body: Uint8Array, contentType: string) {
+    const { prisma } = await import("@/lib/db");
+    const data = { contentType, bytes: Buffer.from(body), sizeBytes: body.length };
+    await prisma.storageObject.upsert({ where: { key }, create: { key, ...data }, update: data });
+  }
+  async get(key: string) {
+    const { prisma } = await import("@/lib/db");
+    const row = await prisma.storageObject.findUnique({ where: { key } });
+    if (!row) throw new Error("Stored file not found");
+    return new Uint8Array(row.bytes);
+  }
+  async signedDownloadUrl() {
+    return null;
+  }
+}
+
+/** Effective driver: STORAGE_DRIVER if set; otherwise "database" in production and "local" in development. */
+export function storageDriverKind(): "s3" | "database" | "local" {
+  const v = process.env.STORAGE_DRIVER;
+  if (v === "s3" || v === "database" || v === "local") return v;
+  return process.env.NODE_ENV === "production" ? "database" : "local";
+}
+
 let driver: StorageDriver | null = null;
 
 export function getStorage(): StorageDriver {
   if (driver) return driver;
-  const kind = process.env.STORAGE_DRIVER ?? "local";
-  if (kind === "s3") {
+  const kind = storageDriverKind();
+  if (kind === "database") {
+    driver = new DatabaseDriver();
+  } else if (kind === "s3") {
     const bucket = process.env.OBJECT_STORAGE_BUCKET;
     if (!bucket) throw new Error("STORAGE_DRIVER=s3 requires OBJECT_STORAGE_BUCKET");
     driver = new S3Driver(bucket);

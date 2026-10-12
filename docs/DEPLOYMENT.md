@@ -8,11 +8,11 @@
 |---|---|---|
 | Application | Vercel (Pro recommended for 5-minute crons) | Next.js 16 serverless functions, region close to Nigeria (e.g. `fra1`/`cdg1`/`lhr1`) |
 | Database | Neon, Supabase, or AWS RDS PostgreSQL 15+ | Use the **pooled** URL for `DATABASE_URL`, direct URL for `DIRECT_URL`; enable PITR backups |
-| Object storage | AWS S3, Cloudflare R2, or other S3-compatible | Private bucket, block public access, SSE enabled |
+| File storage | PostgreSQL (default) or AWS S3 / Cloudflare R2 | With no `STORAGE_DRIVER`, uploads are stored in the database (fine for a pilot; watch the database size). Set `STORAGE_DRIVER=s3` with a private bucket for larger volumes. |
 | Email | Resend | Verify the sending domain (SPF, DKIM, DMARC) |
 | AI (optional) | Anthropic API | Only after data-governance approval |
 
-Vercel's filesystem is ephemeral: the app never stores uploads locally in production (`STORAGE_DRIVER=local` is refused), and background work runs through the database outbox + cron endpoints, not long-running processes.
+Vercel's filesystem is ephemeral: the app never stores uploads on local disk in production (`STORAGE_DRIVER=local` is refused); it uses the database or S3, and background work runs through the database outbox + cron endpoints, not long-running processes.
 
 ## 2. Prerequisites
 
@@ -30,7 +30,10 @@ See the README quick start. Use `EMAIL_PROVIDER=console`, `STORAGE_DRIVER=local`
 2. Create two roles (recommended): a **migration** role (owner of the schema) and an **application** role with `SELECT/INSERT/UPDATE/DELETE` on tables and `USAGE` on sequences, without the right to drop/alter triggers. Point `DIRECT_URL` at the migration role and `DATABASE_URL` (pooled) at the application role.
 3. Always use `sslmode=require`.
 
-## 5. Object storage
+## 5. Object storage (optional)
+
+Skip this section to keep uploads in PostgreSQL. To use a bucket instead:
+
 
 Create a private bucket. For AWS S3: block all public access, enable default encryption, create an IAM user/role limited to `s3:PutObject` and `s3:GetObject` on `arn:aws:s3:::BUCKET/*`. For Cloudflare R2: create an API token scoped to the bucket and set `OBJECT_STORAGE_ENDPOINT=https://<account>.r2.cloudflarestorage.com`, `OBJECT_STORAGE_REGION=auto`. No CORS configuration is needed (uploads go through the app; downloads use presigned URLs).
 
@@ -114,6 +117,7 @@ Vercel → Project → Settings → Domains → add the domain and create the DN
 |---|---|
 | Emails fail with `Invalid login` / `certificate` errors | Check Admin › Email delivery → *Send test email*; use an app password where the provider requires it; port 587 (STARTTLS) or 465 (TLS). |
 | Chatbot widget does not appear | It is enabled only on public information pages (or signed-in pages if chosen); allow up to a minute after saving; check the browser console for blocked domains and add them under *Additional allowed domains*. |
+| Build log shows `CONFIGURATION NEEDED` | The listed variables are missing; the message says where to add them. |
 | `Invalid environment configuration` in logs | Missing/short `AUTH_SECRET`, missing `DATABASE_URL`, or `STORAGE_DRIVER=local` in production. |
 | Login works but every page redirects to `/account/security?enroll=1` | Privileged user without MFA while `security.requireMfaForPrivileged` is on — enrol MFA. |
 | Emails not arriving | Admin › Notification queue shows `FAILED/DEAD` with provider errors; check `RESEND_API_KEY`, domain verification and that crons run. |

@@ -1400,3 +1400,12 @@ model SiteAsset {
   updatedById String?
   updatedAt   DateTime @updatedAt
 }
+
+/// Uploaded file contents when STORAGE_DRIVER=database (the default on deployments without S3).
+model StorageObject {
+  key         String   @id
+  contentType String
+  bytes       Bytes
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+}
