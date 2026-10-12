@@ -25,9 +25,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <Field label="Email address" name="email" required><Input type="email" autoComplete="username" /></Field>
         <Field label="Password" name="password" required><Input type="password" autoComplete="current-password" /></Field>
       </ActionForm>
-      <div className="mt-5 flex flex-wrap justify-between gap-2 text-sm">
+      <div className="mt-5 text-sm">
         <Link href="/forgot-password">Forgot password?</Link>
-        <Link href="/verify-email">Resend verification email</Link>
       </div>
       <p className="mt-6 border-t border-line pt-4 text-sm text-muted">New MDA? <Link href="/register">Register your institution</Link></p>
     </>

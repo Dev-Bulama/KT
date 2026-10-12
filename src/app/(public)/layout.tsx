@@ -2,13 +2,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Logo } from "@/components/layout/logo";
 import { ChatbotWidget } from "@/components/site/chatbot-widget";
+import { PublicNav } from "@/components/site/public-nav";
 import { getSiteContent } from "@/modules/site/content";
 
-const nav = [
-  { href: "/about", label: "About" },
-  { href: "/services", label: "Service catalogue" },
-  { href: "/contact", label: "Contact & support" },
-];
 
 const bannerTone = {
   info: "bg-info-100 text-navy-950 border-navy-100",
@@ -29,18 +25,15 @@ export default async function PublicLayout({ children }: { children: React.React
       )}
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="no-underline" aria-label={`${branding.siteName} home`}><Logo /></Link>
-          <nav className="flex flex-wrap items-center gap-4 text-sm" aria-label="Main">
-            {nav.map((n) => <Link key={n.href} href={n.href} className="text-ink no-underline hover:text-navy-700">{n.label}</Link>)}
-            <Link href="/login" className="rounded-md bg-navy-900 px-3 py-1.5 text-white no-underline hover:bg-navy-800">Sign in</Link>
-          </nav>
+          <Link href="/" className="min-w-0 no-underline" aria-label={`${branding.siteName} home`}><Logo /></Link>
+          <PublicNav />
         </div>
       </header>
       <main id="main" className="flex-1">{children}</main>
       <footer className="border-t border-line bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-4 py-6 text-xs text-muted">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-muted sm:flex-row sm:flex-wrap sm:justify-between">
           <p>© {new Date().getFullYear()} {branding.footerText}</p>
-          <nav className="flex gap-4" aria-label="Footer">
+          <nav className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Footer">
             <Link href="/privacy" className="text-muted">Privacy notice</Link>
             <Link href="/contact" className="text-muted">Support</Link>
             <Link href="/register" className="text-muted">MDA registration</Link>

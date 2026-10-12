@@ -50,6 +50,9 @@ export function ActionForm({
     if (state.ok && successRedirect) window.location.assign(successRedirect);
   }, [state, resetOnSuccess, successRedirect]);
   const errors = state.fieldErrors ?? {};
+  // Optional follow-up link offered by the action (same-site paths only).
+  const link = state.data?.link as { href?: unknown; label?: unknown } | undefined;
+  const followUp = link && typeof link.href === "string" && link.href.startsWith("/") && !link.href.startsWith("//") && typeof link.label === "string" ? { href: link.href, label: link.label } : null;
   return (
     <form
       ref={ref}
@@ -66,6 +69,7 @@ export function ActionForm({
     >
       <FormErrorsContext.Provider value={errors}>{children}</FormErrorsContext.Provider>
       {state.message && !inline && <Alert tone={state.ok ? "success" : "danger"}>{state.message}</Alert>}
+      {followUp && <p className="text-sm"><a href={followUp.href}>{followUp.label}</a></p>}
       {!hideSubmit && <SubmitButton variant={submitVariant} pending={isPending}>{submitLabel}</SubmitButton>}
       {state.message && inline && <span role="status" className={cn("text-xs", state.ok ? "text-accent-700" : "text-danger-700")}>{state.message}</span>}
     </form>

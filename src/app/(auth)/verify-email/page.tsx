@@ -8,8 +8,8 @@ import { resendVerificationAction } from "../actions";
 export const metadata = { title: "Verify email" };
 export const dynamic = "force-dynamic";
 
-export default async function VerifyEmail({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-  const { token } = await searchParams;
+export default async function VerifyEmail({ searchParams }: { searchParams: Promise<{ token?: string; email?: string }> }) {
+  const { token, email } = await searchParams;
   if (token) {
     const r = await verifyEmail(token);
     return (
@@ -25,7 +25,7 @@ export default async function VerifyEmail({ searchParams }: { searchParams: Prom
       <h1 className="text-xl font-semibold">Resend verification email</h1>
       <p className="mt-1 text-sm text-muted">Didn&apos;t receive the link? Enter your email to request a new one.</p>
       <ActionForm action={resendVerificationAction} submitLabel="Send link" className="mt-5">
-        <Field label="Email address" name="email" required><Input type="email" autoComplete="email" /></Field>
+        <Field label="Email address" name="email" required><Input type="email" autoComplete="email" defaultValue={email ?? ""} /></Field>
       </ActionForm>
     </>
   );

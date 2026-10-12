@@ -13,14 +13,23 @@ import { acceptInvitation, registerMda } from "@/modules/mdas/service";
 export async function loginAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const ctx = await getRequestContext();
   let target: string | null = null;
+  let needsVerification = false;
   const res = await runAction(async () => {
     const r = await login(str(fd, "email") ?? "", str(fd, "password") ?? "", { ip: ctx.ip, userAgent: ctx.userAgent });
-    if (!r.ok) throw new AppError(r.error);
+    if (!r.ok) {
+      // Only reached after a correct password, so offering the resend link reveals nothing new.
+      needsVerification = Boolean((r as { needsVerification?: boolean }).needsVerification);
+      throw new AppError(r.error);
+    }
     await setSessionCookie(r.token, r.expiresAt);
     const next = safeRedirectPath(str(fd, "next"));
     target = r.mfaRequired ? `/mfa?next=${encodeURIComponent(next)}` : next;
   });
   if (res.ok && target) redirect(target);
+  if (needsVerification) {
+    const email = str(fd, "email") ?? "";
+    return { ...res, data: { link: { href: `/verify-email?email=${encodeURIComponent(email)}`, label: "Resend the verification email" } } };
+  }
   return res;
 }
 
@@ -63,7 +72,8 @@ export async function registerAction(_: ActionState, fd: FormData): Promise<Acti
       },
       { ip: ctx.ip },
     );
-    return r.message;
+    const email = str(fd, "repEmail") ?? "";
+    return { message: r.message, data: { link: { href: `/verify-email?email=${encodeURIComponent(email)}`, label: "Didn't receive the email? Resend it" } } };
   });
 }
 
