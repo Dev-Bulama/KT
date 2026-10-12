@@ -99,3 +99,9 @@ Indexes support the dominant access paths: `(mdaId, status)` on requests and pro
 ### Retention
 
 `AuditEvent` is retained for at least `retention.auditYears` (default 10). Archival is a DBA procedure (export to WORM storage, verify chain, then purge under change control with the trigger temporarily disabled by a database owner) — see SECURITY.md. Read notifications older than `retention.notificationDays` may be purged. Operational records (requests, projects, reports) are official records and are not purged by the application.
+
+## Site administration tables
+
+- `SiteContent(key, value JSON, updatedById, updatedAt)`: one row per public-page section edited in Admin › Website content. A missing row means the shipped default text is shown.
+- `SiteAsset(key, mime, bytes, sizeBytes ≤ 1 MB, sha256, …)`: the uploaded logo, stored in the database so no public bucket is needed.
+- `SystemSetting` rows `integration.email` (SMTP settings; the password is AES-256-GCM encrypted) and `integration.chatbot` (widget snippet plus the scripts and origins derived from it).

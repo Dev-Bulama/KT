@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-11
+# Checkpoint — 2026-10-12
 
 Status record for anyone continuing this work. It reflects what was actually built and run in the development environment. **No deployment has been performed.**
 
@@ -14,6 +14,7 @@ Status record for anyone continuing this work. It reflects what was actually bui
 8. AI layer (12 features) behind a policy gate with deterministic fallbacks; AI never approves, assigns or closes anything.
 9. UI for all roles (dashboards, search, analytics, knowledge base, feedback/complaints, admin).
 10. Tests (unit, integration, E2E), documentation, deployment guide.
+11. Site administration: SMTP email settings with test send, website content editor (CMS) for public pages and an announcement banner, logo upload, third-party chatbot widget with per-page CSP (see ADMIN_GUIDE.md).
 
 ## Repository structure
 
@@ -34,7 +35,7 @@ docs/              architecture, database (ERD), permissions, AI, security, depl
 
 See [TESTING.md](TESTING.md#latest-results-2026-10-11-this-environment):
 
-- 95/95 unit and integration tests passed.
+- 82/82 unit and 54/54 integration tests passed.
 - 9/9 Playwright E2E tests passed against a production build.
 - Typecheck is clean; lint has 0 errors.
 - `npm run build` succeeded.
@@ -43,6 +44,7 @@ See [TESTING.md](TESTING.md#latest-results-2026-10-11-this-environment):
 ## Known gaps and pending items
 
 - **Live AI calls not exercised** (no API key available). Only the fallback paths and schema validation are tested.
+- SMTP was tested against a local test server only, not a real provider. The chatbot widget was tested with a fictional script origin, not SkillyChat itself.
 - Resend email and S3 storage drivers were not exercised against real providers. Locally, the console email driver and local storage were used.
 - **No official MDA directory is loaded.** The verified list must be imported by KATDICT (see MDA_IMPORT.md). Demo MDAs are fictional and labelled DEMO.
 - **Configuration needs confirming with KATDICT management:** approval thresholds, SLA targets and departments. Public holidays must also be loaded.

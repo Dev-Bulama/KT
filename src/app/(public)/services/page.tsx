@@ -1,14 +1,15 @@
 import { listCatalog } from "@/modules/admin/catalog";
+import { getSiteContent } from "@/modules/site/content";
 
 export const metadata = { title: "Service catalogue" };
 export const dynamic = "force-dynamic";
 
 export default async function Services() {
-  const catalog = await listCatalog();
+  const [catalog, page] = await Promise.all([listCatalog(), getSiteContent("services")]);
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="text-2xl font-semibold">ICT service catalogue</h1>
-      <p className="mt-2 max-w-3xl text-sm text-muted">Services KATDICT offers to Katsina State MDAs. Service-level targets are indicative and are measured from submission, excluding time spent waiting for information from the MDA.</p>
+      <h1 className="text-2xl font-semibold">{page.title}</h1>
+      {page.intro && <p className="mt-2 max-w-3xl whitespace-pre-line text-sm text-muted">{page.intro}</p>}
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {catalog.map((c) => (
           <section key={c.id} className="rounded-[var(--radius-card)] border border-line bg-white p-5" aria-labelledby={`cat-${c.id}`}>

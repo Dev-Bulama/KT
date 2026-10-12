@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
@@ -11,8 +11,9 @@ import { FormErrorsContext } from "./form-errors";
 
 type ServerAction = (prev: ActionState, fd: FormData) => Promise<ActionState>;
 
-export function SubmitButton({ children, pendingText, ...props }: ButtonProps & { pendingText?: string }) {
-  const { pending } = useFormStatus();
+export function SubmitButton({ children, pendingText, pending: pendingProp, ...props }: ButtonProps & { pendingText?: string; pending?: boolean }) {
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
   // Disabled while pending: prevents accidental duplicate submissions.
   return (
     <Button type="submit" disabled={pending || props.disabled} aria-busy={pending} {...props}>
@@ -41,9 +42,10 @@ export function ActionForm({
   successRedirect?: string;
   inline?: boolean;
 }) {
-  const [state, formAction] = useActionState(action, { ok: false });
+  const [state, formAction, isPending] = useActionState(action, { ok: false });
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
+    // Entry forms (comments, invitations…) clear after success; edit forms keep the saved values. Failures never clear.
     if (state.ok && resetOnSuccess) ref.current?.reset();
     if (state.ok && successRedirect) window.location.assign(successRedirect);
   }, [state, resetOnSuccess, successRedirect]);
@@ -54,12 +56,17 @@ export function ActionForm({
       action={formAction}
       className={cn(inline ? "inline-flex flex-wrap items-end gap-2" : "space-y-4", className)}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        // Dispatch manually so React does not reset the form when the action fails validation.
+        // Without JavaScript the native form action still works.
+        e.preventDefault();
+        if (confirm && !window.confirm(confirm)) return;
+        const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => formAction(fd));
       }}
     >
       <FormErrorsContext.Provider value={errors}>{children}</FormErrorsContext.Provider>
       {state.message && !inline && <Alert tone={state.ok ? "success" : "danger"}>{state.message}</Alert>}
-      {!hideSubmit && <SubmitButton variant={submitVariant}>{submitLabel}</SubmitButton>}
+      {!hideSubmit && <SubmitButton variant={submitVariant} pending={isPending}>{submitLabel}</SubmitButton>}
       {state.message && inline && <span role="status" className={cn("text-xs", state.ok ? "text-accent-700" : "text-danger-700")}>{state.message}</span>}
     </form>
   );

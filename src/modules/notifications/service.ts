@@ -1,6 +1,7 @@
 import { prisma, type Db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { getEmailProvider, renderEmailHtml } from "./email";
+import { renderEmailHtml } from "./email";
+import { resolveEmailProvider } from "./email-config";
 import { NOTIFICATION_TYPES, type NotificationType } from "./types";
 
 export interface NotifyInput {
@@ -95,7 +96,7 @@ export async function processOutbox(limit = 25): Promise<{ sent: number; failed:
     try {
       if (ev.kind === "email") {
         const p = ev.payload as { to: string; subject: string; text: string; html?: string };
-        await getEmailProvider().send(p);
+        await (await resolveEmailProvider()).send(p);
       }
       await prisma.outboxEvent.update({ where: { id }, data: { status: "SENT", processedAt: new Date(), lockedAt: null, attempts: { increment: 1 } } });
       sent++;

@@ -34,9 +34,14 @@ See the README quick start. Use `EMAIL_PROVIDER=console`, `STORAGE_DRIVER=local`
 
 Create a private bucket. For AWS S3: block all public access, enable default encryption, create an IAM user/role limited to `s3:PutObject` and `s3:GetObject` on `arn:aws:s3:::BUCKET/*`. For Cloudflare R2: create an API token scoped to the bucket and set `OBJECT_STORAGE_ENDPOINT=https://<account>.r2.cloudflarestorage.com`, `OBJECT_STORAGE_REGION=auto`. No CORS configuration is needed (uploads go through the app; downloads use presigned URLs).
 
-## 6. Email (Resend)
+## 6. Email (SMTP or Resend)
 
-Add and verify the sending domain, create an API key with send permission, set `RESEND_API_KEY` and `EMAIL_FROM`.
+Two options:
+
+- **SMTP (no redeploy needed):** after the first deployment, a Super Administrator enters the organisation's SMTP server in **Admin › Email delivery (SMTP)** and sends a test email. See [ADMIN_GUIDE.md](ADMIN_GUIDE.md#1-setting-up-smtp-email). Alternatively set `EMAIL_PROVIDER=smtp` and the `SMTP_*` variables.
+- **Resend:** add and verify the sending domain, create an API key with send permission, and set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY` and `EMAIL_FROM`.
+
+Either way, configure SPF, DKIM and DMARC for the sending domain.
 
 ## 7. Environment variables
 
@@ -83,7 +88,7 @@ Vercel → Project → Settings → Domains → add the domain and create the DN
 
 1. `GET /api/health` → `{"status":"ok"}`.
 2. Sign in as the Super Administrator; enrol MFA; confirm the MFA challenge on next sign-in.
-3. Admin › System health: database latency, email provider = resend, storage = s3.
+3. Admin › System health: database latency, storage = s3. Admin › Email delivery: send a test email.
 4. Admin › Notification queue: *Run delivery now*; confirm a test invitation email arrives.
 5. Upload a small PDF on a test request (Preview environment) and download it (presigned redirect).
 6. Admin › Audit log → *Verify integrity* passes.
@@ -106,6 +111,8 @@ Vercel → Project → Settings → Domains → add the domain and create the DN
 
 | Symptom | Likely cause / fix |
 |---|---|
+| Emails fail with `Invalid login` / `certificate` errors | Check Admin › Email delivery → *Send test email*; use an app password where the provider requires it; port 587 (STARTTLS) or 465 (TLS). |
+| Chatbot widget does not appear | It is enabled only on public information pages (or signed-in pages if chosen); allow up to a minute after saving; check the browser console for blocked domains and add them under *Additional allowed domains*. |
 | `Invalid environment configuration` in logs | Missing/short `AUTH_SECRET`, missing `DATABASE_URL`, or `STORAGE_DRIVER=local` in production. |
 | Login works but every page redirects to `/account/security?enroll=1` | Privileged user without MFA while `security.requireMfaForPrivileged` is on — enrol MFA. |
 | Emails not arriving | Admin › Notification queue shows `FAILED/DEAD` with provider errors; check `RESEND_API_KEY`, domain verification and that crons run. |

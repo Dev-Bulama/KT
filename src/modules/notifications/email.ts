@@ -1,3 +1,4 @@
+import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { logger } from "@/lib/logger";
 
@@ -41,12 +42,76 @@ class ResendEmailProvider implements EmailProvider {
   }
 }
 
+export type SmtpSecurity = "tls" | "starttls" | "none";
+
+export interface SmtpOptions {
+  host: string;
+  port: number;
+  /** "tls": implicit TLS (usually port 465). "starttls": upgrade required (usually 587). "none": plaintext (development only). */
+  security: SmtpSecurity;
+  username?: string | null;
+  password?: string | null;
+  from: string;
+  replyTo?: string | null;
+}
+
+export class SmtpEmailProvider implements EmailProvider {
+  readonly name = "smtp";
+  private transport: Transporter;
+  constructor(private opts: SmtpOptions) {
+    this.transport = nodemailer.createTransport({
+      host: opts.host,
+      port: opts.port,
+      secure: opts.security === "tls",
+      requireTLS: opts.security === "starttls",
+      ignoreTLS: opts.security === "none",
+      auth: opts.username ? { user: opts.username, pass: opts.password ?? "" } : undefined,
+      // Certificates are always verified; TLS 1.2+ only.
+      tls: { minVersion: "TLSv1.2", servername: opts.host },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    });
+  }
+  /** Connects and authenticates without sending (used by the admin "test connection" button). */
+  async verify(): Promise<void> {
+    await this.transport.verify();
+  }
+  async send(message: EmailMessage) {
+    const info = await this.transport.sendMail({
+      from: this.opts.from,
+      replyTo: this.opts.replyTo || undefined,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+    });
+    return { id: info.messageId ?? null };
+  }
+  close() {
+    this.transport.close();
+  }
+}
+
 let provider: EmailProvider | null = null;
 
+/** Provider configured by environment variables (EMAIL_PROVIDER). Admin-configured SMTP takes precedence; see email-config.ts. */
 export function getEmailProvider(): EmailProvider {
   if (provider) return provider;
   const kind = process.env.EMAIL_PROVIDER ?? "console";
-  if (kind === "resend") {
+  if (kind === "smtp") {
+    const host = process.env.SMTP_HOST;
+    if (!host) throw new Error("EMAIL_PROVIDER=smtp requires SMTP_HOST");
+    const security = (process.env.SMTP_SECURITY ?? "starttls") as SmtpSecurity;
+    provider = new SmtpEmailProvider({
+      host,
+      port: Number(process.env.SMTP_PORT ?? (security === "tls" ? 465 : 587)),
+      security,
+      username: process.env.SMTP_USER || null,
+      password: process.env.SMTP_PASSWORD || null,
+      from: process.env.EMAIL_FROM ?? "no-reply@localhost",
+    });
+  } else if (kind === "resend") {
     const key = process.env.RESEND_API_KEY;
     if (!key) throw new Error("EMAIL_PROVIDER=resend requires RESEND_API_KEY");
     provider = new ResendEmailProvider(key, process.env.EMAIL_FROM ?? "no-reply@localhost");
@@ -57,9 +122,15 @@ export function getEmailProvider(): EmailProvider {
   return provider;
 }
 
-/** Tests may inject a provider. */
+let override: EmailProvider | null = null;
+
+/** Tests may inject a provider; it takes precedence over all configuration. */
 export function setEmailProvider(p: EmailProvider | null) {
-  provider = p;
+  override = p;
+}
+
+export function getEmailOverride(): EmailProvider | null {
+  return override;
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

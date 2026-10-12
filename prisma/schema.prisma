@@ -1381,3 +1381,22 @@ model SystemSetting {
   updatedAt   DateTime @updatedAt
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 }
+
+/// Editable public-website content (CMS). One row per section; absent rows use code defaults.
+model SiteContent {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+/// Small public branding assets (e.g. the logo), stored in the database so they need no public bucket.
+model SiteAsset {
+  key         String   @id
+  mime        String
+  bytes       Bytes
+  sizeBytes   Int
+  sha256      String
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}

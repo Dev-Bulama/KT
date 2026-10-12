@@ -6,6 +6,7 @@ import { logoutAction } from "@/app/(auth)/actions";
 import { Logo } from "./logo";
 import { visibleNav } from "./nav";
 import { SidebarLinks } from "./sidebar-links";
+import { ChatbotWidget } from "@/components/site/chatbot-widget";
 
 export function AppShell({ actor, unread, children }: { actor: Actor; unread: number; children: React.ReactNode }) {
   const sections = visibleNav(actor);
@@ -56,6 +57,7 @@ export function AppShell({ actor, unread, children }: { actor: Actor; unread: nu
         </header>
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8">{children}</main>
       </div>
+      <ChatbotWidget area="app" />
     </div>
   );
 }

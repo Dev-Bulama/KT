@@ -13,7 +13,8 @@ A production-oriented web platform for the **Katsina State Directorate of Inform
 | [docs/PERMISSION_MATRIX.md](docs/PERMISSION_MATRIX.md) | Role–permission matrix (generated from code) |
 | [docs/AI.md](docs/AI.md) | AI architecture, features and security boundaries |
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model (OWASP), controls, security checklist, emergency recovery |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Vercel + managed PostgreSQL + S3 + Resend deployment, backup, rollback |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Vercel + managed PostgreSQL + S3 + SMTP/Resend deployment, backup, rollback |
+| [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) | SMTP email setup, website content (CMS), logo upload, chatbot widget |
 | [docs/MDA_IMPORT.md](docs/MDA_IMPORT.md) | Verified MDA directory CSV import |
 | [docs/TESTING.md](docs/TESTING.md) | Test strategy and how to run each suite |
 | [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) | Readiness checklist and definition-of-done status |

@@ -37,7 +37,9 @@ Legend: ✅ implemented and verified by automated tests · 🟡 implemented, ver
 - [ ] Confirm approval thresholds, SLA targets, departments and service catalogue with KATDICT management.
 - [ ] Load gazetted public holidays into `calendar.holidays`.
 - [ ] Import the **verified** official MDA directory (MDA_IMPORT.md).
-- [ ] Provision production database, private bucket, Resend domain, Vercel project (DEPLOYMENT.md).
+- [ ] Provision production database, private bucket, Vercel project (DEPLOYMENT.md); configure SMTP in Admin › Email delivery (or Resend) and send a test email.
+- [ ] Replace placeholder website content with approved text, add confirmed contact details, upload the official logo (ADMIN_GUIDE.md).
+- [ ] If a chatbot widget is wanted: approve the provider's data-protection terms before enabling it.
 - [ ] Create the initial Super Administrator, enrol MFA, invite KATDICT staff with correct roles and departments.
 - [ ] Decide on AI: keep disabled, or document data-governance approval and enable selectively.
 - [ ] Connect a malware-scanning service or record the risk acceptance.

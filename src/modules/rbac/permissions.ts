@@ -12,6 +12,8 @@ export const PERMISSIONS = {
   "system.health.view": "View system health and operational metrics",
   "system.ai.configure": "Configure AI providers and AI policies",
   "system.notifications.manage": "Manage notification templates and delivery queue",
+  // Public website
+  "site.content.manage": "Edit public website content, branding and logo",
   // Users and roles
   "user.read": "View user accounts",
   "user.manage": "Create, invite, suspend and reactivate KATDICT/oversight users",
@@ -130,7 +132,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     privileged: true,
     permissions: [
       "system.settings.manage", "system.health.view", "system.ai.configure", "system.notifications.manage",
-      "user.read", "user.manage", "role.manage", "role.assign",
+      "site.content.manage", "user.read", "user.manage", "role.manage", "role.assign",
       "department.read", "department.manage", "catalog.manage", "mda.import",
       ...READ_ALL, "report.generate", "report.export", "audit.read", "dataquality.view",
       "escalation.configure", "earlywarning.view", "knowledge.read", "complaint.read.all", "feedback.read.all",
@@ -238,7 +240,7 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
 /** Permissions that must never be granted to roles held by MDA users. */
 export const KATDICT_ONLY_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
   (p) =>
-    p.startsWith("system.") || p.startsWith("role.") || p === "user.manage" || p.endsWith(".all") ||
+    p.startsWith("system.") || p.startsWith("site.") || p.startsWith("role.") || p === "user.manage" || p.endsWith(".all") ||
     ["mda.review", "mda.manage", "mda.import", "catalog.manage", "request.triage", "request.assess",
       "request.evaluate.technical", "request.scope", "request.decide", "request.approve.technical",
       "request.approve.department", "request.approve.executive", "project.create", "project.assign",
@@ -253,7 +255,7 @@ export const KATDICT_ONLY_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
 export const OVERSIGHT_FORBIDDEN_PREFIXES = [
   "request.triage", "request.assess", "request.approve", "request.decide", "request.scope", "request.evaluate",
   "project.update", "project.manage", "project.assign", "project.close", "project.completion", "project.scope.decide",
-  "mda.review", "mda.manage", "user.manage", "role.", "system.", "catalog.manage", "report.finalize",
+  "mda.review", "mda.manage", "user.manage", "role.", "system.", "site.", "catalog.manage", "report.finalize",
 ];
 
 export const PRIVILEGED_ROLE_KEYS = DEFAULT_ROLES.filter((r) => r.privileged).map((r) => r.key);
