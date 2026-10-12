@@ -50,9 +50,10 @@ Copy every variable from [`.env.example`](../.env.example) into Vercel → Proje
 ## 8. Vercel project
 
 1. Vercel → *Add New Project* → import the GitHub repository. Framework preset: Next.js.
-2. Build command: `npm run build` (runs `prisma generate && next build`). Install command: `npm install`. Output: default.
+2. Build command: **`npm run vercel-build`**. On Production deployments it runs `prisma migrate deploy` (never resets data) and the idempotent base seed (creates the initial Super Administrator only if `SEED_SUPER_ADMIN_*` are set and that user does not exist) before `next build`; Preview deployments only build. Install command: `npm install`. Output: default.
+   The database can be created from Vercel → Storage → Neon; the integration's `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (used for migrations) are recognised automatically.
 3. Set environment variables (step 7).
-4. Crons are declared in [`vercel.json`](../vercel.json) (`/api/cron/outbox` every 5 min, `/api/cron/escalations` hourly). Vercel sends `Authorization: Bearer $CRON_SECRET`. On the Hobby plan crons run at most once per day — use Pro, or call the same endpoints from an external scheduler with the bearer header.
+4. Crons are declared in [`vercel.json`](../vercel.json): once a day by default (`/api/cron/outbox` 06:00 UTC, `/api/cron/escalations` 07:00 UTC), which the Hobby plan allows. Email does not wait for the cron: it is delivered right after the action that queued it (Next.js `after`); the daily run retries anything that failed. On Pro you can tighten the schedules (e.g. `*/5 * * * *` and `0 * * * *`), or call the endpoints from an external scheduler with `Authorization: Bearer $CRON_SECRET`.
 5. GitHub integration: pushes to the production branch deploy to Production; pull requests get Preview deployments (use a separate Preview database).
 
 ## 9. Database migrations (safe)

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma, type Db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { renderEmailHtml } from "./email";
@@ -64,6 +65,28 @@ export async function enqueueEmail(
     if (exists) return;
   }
   await db.outboxEvent.create({ data: { kind: "email", payload, dedupeKey: dedupeKey ?? null } });
+  scheduleDelivery();
+}
+
+/**
+ * Delivers queued email right after the current response is sent (Next.js
+ * `after`, which Vercel keeps alive until it finishes), so email does not wait
+ * for the scheduled job. Outside a request (scripts, tests) this is a no-op and
+ * the cron job / "Run delivery now" delivers instead. Concurrent runs are safe
+ * (rows are claimed with SKIP LOCKED).
+ */
+function scheduleDelivery() {
+  try {
+    after(async () => {
+      try {
+        await processOutbox(20);
+      } catch (err) {
+        logger.warn("outbox.after_delivery_failed", { error: (err as Error).message });
+      }
+    });
+  } catch {
+    /* not in a request scope */
+  }
 }
 
 function backoffMs(attempt: number) {
